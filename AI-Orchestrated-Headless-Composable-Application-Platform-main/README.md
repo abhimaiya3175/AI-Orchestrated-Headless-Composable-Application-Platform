@@ -2,6 +2,11 @@
 
 ## Implementation Plan
 
+### Recent Updates (March 2026)
+* **Frontend Bug Fixes**: Removed deprecated `Pricing` and `Contact` slides, resolved all ESLint typing warnings, and migrated to Next.js `<Image>` tags.
+* **Dependencies**: Generated frozen `requirements.txt` for standardized backend initialization.
+* **Cleanup**: Analyzed and cleared unused or empty layout design files.
+
 ---
 
 # 1. Project Overview
@@ -53,18 +58,21 @@ Final Travel Plan Response
 
 ## Frontend
 
-Simple chat interface for user queries.
+Modern slide-based UI with AI Travel Planner chatbot.
 
 Technologies:
 
-* HTML
-* Tailwind CSS
-* JavaScript
+* **Next.js 14** (React framework)
+* **Tailwind CSS** (Utility-first styling)
+* **TypeScript**
+* **Framer Motion** (Animations)
 
-Optional upgrade:
+Features:
 
-* Next.js
-* React
+* 4 marketing slides with parallax, skeleton loaders, and animated counters
+* **AI Chatbot slide** (Slide 5) — sends natural language queries to the backend
+* Responsive design (desktop slide transitions + mobile scroll)
+* Custom cursor, glassmorphism cards, and spotlight hover effects
 
 ---
 
@@ -300,25 +308,47 @@ Estimated Budget
 ```
 ai-platform/
 
-frontend/
-   index.html
-   script.js
+frontend/                    # Next.js 14 + Tailwind CSS
+   src/
+     app/
+       page.tsx              # Main slide controller
+       layout.tsx            # Root layout with fonts
+       globals.css           # Design system tokens
+     components/
+       Navbar.tsx            # Navigation bar with slide links
+       Cursor.tsx            # Custom cursor effect
+       Animations.tsx        # SplitText + spotlight hover
+       TransitionOverlay.tsx # Slide transition overlay
+       slides/
+         Slide1.tsx          # Hero + parallax + marquee
+         Slide2.tsx          # Platform overview
+         Slide4.tsx          # AI Core + animated counters
+         Slide5.tsx          # Composable modules grid
+         ChatBot.tsx         # AI Travel Planner chatbot UI
+   public/
+     images/                 # Generated placeholder images
+   next.config.mjs
+   tailwind.config.ts
+   package.json
 
 gateway/
-   main.py
+   main.py                   # FastAPI gateway (POST /plan, GET /health)
+   Dockerfile
 
 orchestrator/
-   planner.py
+   planner.py                # LangChain + ChatOllama AI orchestrator
 
 services/
-   flight_service.py
-   hotel_service.py
-   weather_service.py
-   places_service.py
+   flight_service/main.py    # Flight search API (port 8001)
+   hotel_service/main.py     # Hotel search API (port 8002)
+   weather_service/main.py   # Weather API (port 8003)
+   places_service/main.py    # Tourist attractions API (port 8004)
+   budget_service/main.py    # Budget calculator API (port 8005)
 
-data/
-   flights.json
-   hotels.json
+start_backend.py             # Launches all 6 backend services
+requirements.txt             # Frozen Python dependencies
+docker-compose.yml
+.env.example
 ```
 
 ---
@@ -549,47 +579,63 @@ print(response)
 
 # 15. Running the Application
 
-### Start Individual Microservices
+### Quick Start (All Services)
+
+The easiest way to start all backend services at once:
+
+```bash
+# From the project root directory
+python start_backend.py
+# This starts all 5 microservices + gateway on ports 8000-8005
+```
+
+### Start Individual Microservices (Alternative)
 
 Open separate terminals for each service:
 
 ```bash
 # Terminal 1: Flight Service
 cd services/flight_service
-python main.py
+uvicorn main:app --port 8001
 
 # Terminal 2: Hotel Service
 cd services/hotel_service
-python main.py
+uvicorn main:app --port 8002
 
 # Terminal 3: Weather Service
 cd services/weather_service
-python main.py
+uvicorn main:app --port 8003
 
 # Terminal 4: Places Service
 cd services/places_service
-python main.py
+uvicorn main:app --port 8004
 
 # Terminal 5: Budget Service
 cd services/budget_service
-python main.py
-```
+uvicorn main:app --port 8005
 
-### Start API Gateway & Orchestrator
-
-```bash
+# Terminal 6: API Gateway
 cd gateway
-python main.py
-# Runs on http://localhost:8000
+uvicorn main:app --port 8000
 ```
 
-### Start Frontend (Optional)
+### Start Frontend
 
 ```bash
 cd frontend
-npm start
+npm install
+npm run dev
 # Runs on http://localhost:3000
 ```
+
+### Using the AI Chatbot
+
+1. Make sure Ollama is running: `ollama serve`
+2. Start the backend: `python start_backend.py`
+3. Start the frontend: `cd frontend && npm run dev`
+4. Navigate to **Slide 5 (AI Planner)** or click the **[AI PLANNER]** button
+5. Type a travel query like: *"Plan a 2-day trip to Goa under ₹15000"*
+6. The AI orchestrator will call all 5 services and return a complete travel plan
 
 ### Docker Deployment
 

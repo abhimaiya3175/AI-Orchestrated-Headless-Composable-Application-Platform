@@ -77,3 +77,23 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
+
+# Lint output artifacts
+lint-errors.*
+lint_output.*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
