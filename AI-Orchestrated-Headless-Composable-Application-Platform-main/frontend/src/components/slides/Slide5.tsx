@@ -1,3 +1,4 @@
+//frontend/src/components/slides/Slide5.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -12,16 +13,32 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
     }, [isActive, isMobile]);
 
     const modules = [
-        { title: "CMS Core", desc: "Headless structured content with visual schema builder", icon: "📑" },
-        { title: "Auth Engine", desc: "OAuth2, SAML, Magic Links via stateless JWT tokens", icon: "🔑" },
-        { title: "Search API", desc: "Vector semantic search backed by integrated embedding models", icon: "🔍" },
-        { title: "Analytics", desc: "Real-time edge event ingestion and real-user monitoring", icon: "📊" },
-        { title: "Notifications", desc: "Unified multi-channel push, email, SMS delivery pipeline", icon: "🔔" },
-        { title: "Media CDN", desc: "On-the-fly edge image optimization and video streaming", icon: "🖼️" },
-        { title: "Commerce", desc: "Cart, checkout, inventory logic for headless storefronts", icon: "🛍️" },
-        { title: "Workflow AI", desc: "State machine orchestrator for multi-step AI agents", icon: "⚙️" },
-        { title: "Edge Functions", desc: "Serverless TS/WASM compute running closest to your users", icon: "⚡" }
-    ];
+        {
+            title: "Flights Service",
+            desc: "Retrieves available flights and pricing from the flight microservice.",
+            icon: "✈️"
+        },
+        {
+            title: "Hotels Service",
+            desc: "Finds accommodation options and nightly pricing.",
+            icon: "🏨"
+        },
+        {
+            title: "Weather Service",
+            desc: "Provides real-time weather conditions for the destination.",
+            icon: "🌤"
+        },
+        {
+            title: "Places Service",
+            desc: "Suggests attractions and activities in the destination city.",
+            icon: "📍"
+        },
+        {
+            title: "Budget Service",
+            desc: "Calculates estimated trip cost from all services.",
+            icon: "💰"
+        }
+        ];
 
     return (
         <div className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>

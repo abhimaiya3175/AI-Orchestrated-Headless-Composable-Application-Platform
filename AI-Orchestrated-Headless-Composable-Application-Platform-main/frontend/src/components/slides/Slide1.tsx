@@ -1,3 +1,4 @@
+//frontend/src/components/slides/Slide1.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";

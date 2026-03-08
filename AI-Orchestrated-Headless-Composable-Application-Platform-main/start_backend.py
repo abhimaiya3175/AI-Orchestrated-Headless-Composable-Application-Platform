@@ -3,33 +3,32 @@ import sys
 import time
 
 services = [
-    ("Flights_Service", "8001", "services/flight_service"),
-    ("Hotels_Service", "8002", "services/hotel_service"),
-    ("Weather_Service", "8003", "services/weather_service"),
-    ("Places_Service", "8004", "services/places_service"),
-    ("Budget_Service", "8005", "services/budget_service"),
-    ("Gateway", "8000", "gateway")
+    ("Flights Service", "uvicorn services.flight_service.main:app --port 8001 --reload"),
+    ("Hotels Service", "uvicorn services.hotel_service.main:app --port 8002 --reload"),
+    ("Weather Service", "uvicorn services.weather_service.main:app --port 8003 --reload"),
+    ("Places Service", "uvicorn services.places_service.main:app --port 8004 --reload"),
+    ("Budget Service", "uvicorn services.budget_service.main:app --port 8005 --reload"),
+    ("Gateway", "uvicorn gateway.main:app --port 8000 --reload"),
 ]
 
 processes = []
-print("🚀 Starting all AI Travel Planner backend services...")
+
+print("\n🚀 Starting AI Travel Planner Backend\n")
+
+for name, command in services:
+    print(f"Starting {name}...")
+    process = subprocess.Popen(command, shell=True)
+    processes.append(process)
+    time.sleep(1)
+
+print("\n✅ All services started!")
+print("Press CTRL+C to stop everything.\n")
 
 try:
-    for name, port, path in services:
-        print(f"⏳ Starting {name} on port {port}...")
-        p = subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--port", port], cwd=path)
-        processes.append(p)
-        time.sleep(0.5) # Slight delay to avoid console text overlapping
-
-    print("\n✅ All backend services are running!")
-    print("🌍 API Gateway is available at: http://localhost:8000")
-    print("\nPress Ctrl+C to stop all services.")
-    
-    for p in processes:
-        p.wait()
-
+    while True:
+        time.sleep(1)
 except KeyboardInterrupt:
-    print("\n🛑 Stopping all services...")
+    print("\n🛑 Shutting down services...\n")
     for p in processes:
         p.terminate()
-    print("Goodbye!")
+    sys.exit()

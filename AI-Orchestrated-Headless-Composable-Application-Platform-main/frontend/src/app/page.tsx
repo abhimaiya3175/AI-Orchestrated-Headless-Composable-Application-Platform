@@ -1,3 +1,4 @@
+// frontend/src/app/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,19 +7,21 @@ import Cursor from "@/components/Cursor";
 import TransitionOverlay from "@/components/TransitionOverlay";
 import Slide1 from "@/components/slides/Slide1";
 import Slide2 from "@/components/slides/Slide2";
+import Slide3 from "@/components/slides/Slide3";
 import Slide4 from "@/components/slides/Slide4";
 import Slide5 from "@/components/slides/Slide5";
 import ChatBot from "@/components/slides/ChatBot";
 
 // Map array to render dynamically
-const SLIDES = [Slide1, Slide2, Slide4, Slide5, ChatBot];
+const SLIDES = [Slide1, Slide2, Slide3, Slide4, Slide5, ChatBot];
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideOut, setSlideOut] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-
+  type SlideComponent = React.ComponentType<any>;
+  const SLIDES: SlideComponent[] = [Slide1, Slide2, Slide3, Slide4, Slide5, ChatBot];
   // Responsive check
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -139,11 +142,15 @@ export default function Home() {
       {isMobile ? (
         // Mobile view: Stack all slides vertically
         <div className="flex flex-col">
-          {SLIDES.map((SlideComp, idx) => (
-            <div key={idx} id={`slide-${idx + 1}`} className="w-full min-h-screen relative overflow-hidden shrink-0">
-              {idx === 1 || idx === 2 || idx === 4 ? <SlideComp isActive={true} nextSlide={() => setCurrentSlide(Math.min(SLIDES.length - 1, idx + 1))} /> : <SlideComp isActive={true} nextSlide={() => setCurrentSlide(Math.min(SLIDES.length - 1, idx + 1))} isMobile={isMobile} />}
-            </div>
-          ))}
+        {SLIDES.map((SlideComp, idx) => (
+          <div key={idx} id={`slide-${idx + 1}`} className="w-full min-h-screen relative overflow-hidden shrink-0">
+            <SlideComp
+              isActive={true}
+              nextSlide={() => setCurrentSlide(Math.min(SLIDES.length - 1, idx + 1))}
+              isMobile={isMobile}
+            />
+          </div>
+        ))}        
         </div>
       ) : (
         // Desktop view: Slide controller showing only current slide
@@ -161,7 +168,11 @@ export default function Home() {
                   pointerEvents: isActive ? "auto" : "none"
                 }}
               >
-                {idx === 1 || idx === 2 || idx === 4 ? <SlideComp isActive={isActive} nextSlide={() => changeSlide(idx + 1)} /> : <SlideComp isActive={isActive} nextSlide={() => changeSlide(idx + 1)} isMobile={isMobile} />}
+                <SlideComp
+                  isActive={isActive}
+                  nextSlide={() => changeSlide(idx + 1)}
+                  isMobile={isMobile}
+                />
               </div>
             );
           })}
