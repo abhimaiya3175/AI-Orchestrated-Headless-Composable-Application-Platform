@@ -183,13 +183,12 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
 
     return (
         <div
-            className={`slide-container bg-bg-deep flex flex-col items-center justify-start pt-24 pb-8 ${
-                isActive ? "slide-active" : "slide-exit"
-            }`}
+            className={`slide-container bg-bg-deep flex flex-col items-center justify-start pt-20 md:pt-24 pb-4 md:pb-8 ${isActive ? "slide-active" : "slide-exit"
+                }`}
         >
             {/* Header */}
-            <div className="z-10 text-center mb-6 px-4">
-                <h2 className="font-orbitron font-bold text-3xl md:text-5xl text-white mb-3">
+            <div className="z-10 text-center mb-3 md:mb-6 px-4">
+                <h2 className="font-orbitron font-bold text-xl sm:text-3xl md:text-5xl text-white mb-2 md:mb-3">
                     <SplitText text="AI TRAVEL PLANNER" delayIndex={0} />
                 </h2>
                 <p className="font-space text-text-muted text-sm max-w-xl mx-auto">
@@ -200,30 +199,28 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
             </div>
 
             {/* Chat Container */}
-            <div className="z-10 w-full max-w-3xl flex-1 flex flex-col mx-auto px-4 overflow-hidden">
+            <div className="z-10 w-full max-w-3xl flex-1 flex flex-col mx-auto px-2 sm:px-4 overflow-hidden">
                 <div className="glass-card flex-1 flex flex-col overflow-hidden border-opal/20">
 
                     {/* Service flow animation while loading */}
                     {loading && <ServiceFlow active={loading} />}
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 scrollbar-thin">
                         {messages.map((msg, i) => (
                             <div key={i}>
                                 {/* Bubble */}
                                 <div
-                                    className={`flex ${
-                                        msg.role === "user" ? "justify-end" : "justify-start"
-                                    }`}
+                                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"
+                                        }`}
                                 >
                                     <div
-                                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-space leading-relaxed ${
-                                            msg.role === "user"
+                                        className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-space leading-relaxed ${msg.role === "user"
                                                 ? "bg-opal/20 text-white border border-opal/30"
                                                 : msg.role === "system"
-                                                ? "bg-sapphire-night text-text-muted border border-border"
-                                                : "bg-sapphire-night/80 text-white border border-opal/10"
-                                        }`}
+                                                    ? "bg-sapphire-night text-text-muted border border-border"
+                                                    : "bg-sapphire-night/80 text-white border border-opal/10"
+                                            }`}
                                     >
                                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                                     </div>
@@ -247,11 +244,10 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                                             title={step.error ?? undefined}
                                                         >
                                                             <span
-                                                                className={`w-2 h-2 rounded-full ${
-                                                                    step.status === "completed"
+                                                                className={`w-2 h-2 rounded-full ${step.status === "completed"
                                                                         ? "bg-green-400"
                                                                         : "bg-red-400"
-                                                                }`}
+                                                                    }`}
                                                             />
                                                             <span className="text-xs font-space text-white">
                                                                 {stepIcon(step.step)} {step.step}
@@ -309,7 +305,7 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                                     {msg.tripPlan.flights.map((f, j) => (
                                                         <div
                                                             key={j}
-                                                            className="flex justify-between items-center font-space text-sm text-white"
+                                                            className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1"
                                                         >
                                                             <div>
                                                                 <span>{f.airline}</span>
@@ -337,7 +333,7 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                                 <div className="space-y-2">
                                                     {msg.tripPlan.hotels.map((h, j) => (
                                                         <div key={j}>
-                                                            <div className="flex justify-between items-center font-space text-sm text-white">
+                                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1">
                                                                 <div>
                                                                     <span>{h.name}</span>
                                                                     <span className="text-text-muted text-xs ml-2">
@@ -446,11 +442,10 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                                 {/* Budget evaluation badge */}
                                                 {msg.tripPlan.budget_evaluation && (
                                                     <div
-                                                        className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-space font-bold ${
-                                                            msg.tripPlan.budget_evaluation.status === "within_budget"
+                                                        className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-space font-bold ${msg.tripPlan.budget_evaluation.status === "within_budget"
                                                                 ? "bg-green-500/20 text-green-400"
                                                                 : "bg-red-500/20 text-red-400"
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {msg.tripPlan.budget_evaluation.status === "within_budget"
                                                             ? `✅ Within budget · saves ₹${msg.tripPlan.budget_evaluation.difference.toLocaleString()}`
@@ -484,11 +479,10 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                                                         className="flex items-center gap-2 font-space text-xs"
                                                                     >
                                                                         <span
-                                                                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                                                t.status === "completed"
+                                                                            className={`w-2 h-2 rounded-full flex-shrink-0 ${t.status === "completed"
                                                                                     ? "bg-green-400"
                                                                                     : "bg-red-400"
-                                                                            }`}
+                                                                                }`}
                                                                         />
                                                                         <span className="text-white">{stepIcon(t.step)} {t.step}</span>
                                                                         <span className="text-text-muted">— {t.status}</span>
@@ -540,21 +534,21 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                     </div>
 
                     {/* Input Bar */}
-                    <div className="p-4 border-t border-border">
-                        <div className="flex gap-3">
+                    <div className="p-3 sm:p-4 border-t border-border">
+                        <div className="flex gap-2 sm:gap-3">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && sendQuery()}
                                 placeholder="e.g. Plan a 2-day trip to Goa under ₹15000..."
-                                className="flex-1 bg-bg-deep border border-border rounded-xl px-4 py-3 text-sm font-space text-white placeholder-text-muted/60 focus:outline-none focus:border-opal/50 transition-colors"
+                                className="flex-1 bg-bg-deep border border-border rounded-xl px-3 sm:px-4 py-3 text-xs sm:text-sm font-space text-white placeholder-text-muted/60 focus:outline-none focus:border-opal/50 transition-colors min-h-[44px]"
                                 disabled={loading}
                             />
                             <button
                                 onClick={sendQuery}
                                 disabled={loading || !input.trim()}
-                                className="btn-primary px-6 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="btn-primary px-4 sm:px-6 disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm"
                             >
                                 {loading ? "..." : "Send"}
                             </button>

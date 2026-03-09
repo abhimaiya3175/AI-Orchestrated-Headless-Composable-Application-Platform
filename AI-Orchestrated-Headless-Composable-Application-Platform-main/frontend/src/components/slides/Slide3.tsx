@@ -29,40 +29,38 @@ export default function Slide3({ isActive }: { isActive: boolean }) {
 
   return (
     <div
-      className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${
-        isActive ? "slide-active" : "slide-exit"
-      }`}
+      className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${isActive ? "slide-active" : "slide-exit"
+        }`}
     >
-      <div className="text-center mb-16">
-        <h2 className="font-orbitron font-bold text-4xl md:text-5xl text-white mb-6">
+      <div className="text-center mb-8 md:mb-16 px-4">
+        <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-white mb-4 md:mb-6">
           <SplitText text="SYSTEM ARCHITECTURE" />
         </h2>
 
-        <p className="font-space text-text-muted max-w-xl mx-auto">
+        <p className="font-space text-text-muted max-w-xl mx-auto text-sm md:text-base px-2">
           AI orchestrates modular services dynamically to fulfill user requests.
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-6 max-w-5xl">
+      <div className="flex flex-wrap justify-center gap-3 sm:gap-6 max-w-5xl px-4">
         {steps.map((step, i) => (
           <div
             key={i}
-            className={`glass-card p-6 w-[180px] text-center transition-all duration-500 ${
-              i === activeStep
+            className={`glass-card p-4 sm:p-6 w-[140px] sm:w-[180px] text-center transition-all duration-500 ${i === activeStep
                 ? "border-opal scale-105 shadow-lg"
                 : "opacity-60"
-            }`}
+              }`}
           >
-            <div className="text-3xl mb-3">{step.icon}</div>
+            <div className="text-2xl sm:text-3xl mb-2 sm:mb-3">{step.icon}</div>
 
-            <div className="font-orbitron text-xs tracking-[2px] text-white">
+            <div className="font-orbitron text-[10px] sm:text-xs tracking-[2px] text-white">
               {step.label}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-12 font-space text-xs text-text-muted text-center max-w-lg">
+      <div className="mt-8 md:mt-12 font-space text-xs text-text-muted text-center max-w-lg px-4">
         The AI orchestration engine interprets intent, composes workflows,
         and dynamically calls modular services to produce the final response.
       </div>

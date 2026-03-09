@@ -111,29 +111,29 @@ export default function Slide4({ isActive }: { isActive: boolean }) {
         <div className={`slide-container bg-bg-deep flex items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
             <NeuralNetworkBG />
 
-            <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-8 z-10 gap-16">
+            <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-4 sm:px-8 z-10 gap-8 md:gap-16">
 
-                <div className="flex-1 flex flex-col justify-center max-w-xl">
-                    <div className="font-orbitron text-[10px] text-opal tracking-[6px] uppercase mb-6">CORE ENGINE</div>
+                <div className="flex-1 flex flex-col justify-center max-w-xl px-2">
+                    <div className="font-orbitron text-[9px] sm:text-[10px] text-opal tracking-[4px] sm:tracking-[6px] uppercase mb-4 md:mb-6">CORE ENGINE</div>
 
-                    <h2 className="font-orbitron font-bold text-3xl md:text-5xl text-white leading-tight mb-8">
+                    <h2 className="font-orbitron font-bold text-2xl sm:text-3xl md:text-5xl text-white leading-tight mb-4 md:mb-8">
                         <SplitText text="AI AT THE CORE" delayIndex={0} />
                         <br />
                         <SplitText text="OF EVERYTHING." delayIndex={4} />
                     </h2>
 
-                    <p className="font-space text-sm md:text-[15px] text-text-muted mb-12 leading-relaxed">
+                    <p className="font-space text-xs sm:text-sm md:text-[15px] text-text-muted mb-6 md:mb-12 leading-relaxed">
                         Our proprietary orchestration engine uses LLMs to interpret intent, dynamically selecting and assembling the perfect microservice pipeline for any request in real-time.
                     </p>
 
-                    <div className="flex flex-wrap gap-8 md:gap-12">
+                    <div className="flex flex-wrap gap-6 sm:gap-8 md:gap-12">
                         <AnimatedCounter value={10000000} label="API Calls/Second" trigger={isActive} />
                         <AnimatedCounter value={9999} label="Uptime Guarantee" trigger={isActive} />
                         <AnimatedCounter value={200} label="Composable Modules" trigger={isActive} />
                     </div>
                 </div>
 
-                <div className="flex-1 w-full max-w-md relative group mt-12 md:mt-0 min-h-[300px] md:min-h-[400px] aspect-square">
+                <div className="flex-1 w-full max-w-xs sm:max-w-md relative group mt-8 md:mt-0 min-h-[200px] sm:min-h-[300px] md:min-h-[400px] aspect-square">
                     <div className="absolute -inset-1 bg-gradient-to-tr from-opal/50 to-transparent rounded-[24px] blur-xl opacity-30 group-hover:opacity-60 transition-opacity duration-700" />
                     <Image
                         src="/images/ai-orchestration.jpg"

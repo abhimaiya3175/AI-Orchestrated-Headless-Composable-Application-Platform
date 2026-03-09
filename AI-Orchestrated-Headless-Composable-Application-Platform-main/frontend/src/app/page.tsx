@@ -1,10 +1,9 @@
 // frontend/src/app/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Cursor from "@/components/Cursor";
-import TransitionOverlay from "@/components/TransitionOverlay";
 import Slide1 from "@/components/slides/Slide1";
 import Slide2 from "@/components/slides/Slide2";
 import Slide3 from "@/components/slides/Slide3";
@@ -12,13 +11,11 @@ import Slide4 from "@/components/slides/Slide4";
 import Slide5 from "@/components/slides/Slide5";
 import ChatBot from "@/components/slides/ChatBot";
 
-// Map array to render dynamically
-const SLIDES = [Slide1, Slide2, Slide3, Slide4, Slide5, ChatBot];
-
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [prevSlide, setPrevSlide] = useState<number | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [slideOut, setSlideOut] = useState(false);
+  const [direction, setDirection] = useState<"next" | "prev">("next");
   const [isMobile, setIsMobile] = useState(false);
   type SlideComponent = React.ComponentType<any>;
   const SLIDES: SlideComponent[] = [Slide1, Slide2, Slide3, Slide4, Slide5, ChatBot];
@@ -62,18 +59,16 @@ export default function Home() {
       return;
     }
 
+    setDirection(newIndex > currentSlide ? "next" : "prev");
+    setPrevSlide(currentSlide);
     setIsTransitioning(true);
-    // Phase 1: Wait for overlay to come IN (300ms)
-    setTimeout(() => {
-      setCurrentSlide(newIndex);
-      setSlideOut(true);
+    setCurrentSlide(newIndex);
 
-      // Phase 2 + 3: Hold 80ms, then slide Out
-      setTimeout(() => {
-        setIsTransitioning(false);
-        setSlideOut(false);
-      }, 380);
-    }, 300);
+    // Wait for the transition to finish
+    setTimeout(() => {
+      setIsTransitioning(false);
+      setPrevSlide(null);
+    }, 600);
   };
 
   // Keyboard and wheel navigation
@@ -127,6 +122,43 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSlide, isTransitioning, isMobile]);
 
+  // Compute styles for fade + slide transition
+  const getSlideStyle = (idx: number): React.CSSProperties => {
+    const isActive = idx === currentSlide;
+    const isPrev = idx === prevSlide;
+
+    if (isActive) {
+      // Incoming slide: animate in with fade + slide using CSS keyframe
+      const animName = direction === "next" ? "fadeSlideInFromRight" : "fadeSlideInFromLeft";
+      return {
+        zIndex: 20,
+        opacity: 1,
+        transform: "translateX(0)",
+        animation: isTransitioning ? `${animName} 500ms ease-out both` : "none",
+        pointerEvents: "auto",
+      };
+    }
+
+    if (isPrev && isTransitioning) {
+      // Outgoing slide: fades out and slides away
+      const exitX = direction === "next" ? "-60px" : "60px";
+      return {
+        zIndex: 10,
+        opacity: 0,
+        transform: `translateX(${exitX})`,
+        transition: "opacity 500ms ease-out, transform 500ms ease-out",
+        pointerEvents: "none",
+      };
+    }
+
+    // Hidden slides
+    return {
+      zIndex: 1,
+      opacity: 0,
+      pointerEvents: "none",
+    };
+  };
+
   return (
     <main className="w-full text-text-primary">
       <Cursor />
@@ -137,40 +169,36 @@ export default function Home() {
         isMobile={isMobile}
       />
 
-      {!isMobile && <TransitionOverlay isTransitioning={isTransitioning} slideOut={slideOut} />}
-
       {isMobile ? (
         // Mobile view: Stack all slides vertically
         <div className="flex flex-col">
-        {SLIDES.map((SlideComp, idx) => (
-          <div key={idx} id={`slide-${idx + 1}`} className="w-full min-h-screen relative overflow-hidden shrink-0">
-            <SlideComp
-              isActive={true}
-              nextSlide={() => setCurrentSlide(Math.min(SLIDES.length - 1, idx + 1))}
-              isMobile={isMobile}
-            />
-          </div>
-        ))}        
+          {SLIDES.map((SlideComp, idx) => (
+            <div key={idx} id={`slide-${idx + 1}`} className="w-full min-h-screen relative overflow-hidden shrink-0">
+              <SlideComp
+                isActive={true}
+                nextSlide={() => setCurrentSlide(idx === 0 ? 5 : Math.min(SLIDES.length - 1, idx + 1))}
+                isMobile={isMobile}
+              />
+            </div>
+          ))}
         </div>
       ) : (
-        // Desktop view: Slide controller showing only current slide
-        <div className="flex w-full h-screen overflow-hidden">
+        // Desktop view: Fade + Slide transition between slides
+        <div className="relative w-full h-screen overflow-hidden">
           {SLIDES.map((SlideComp, idx) => {
             const isActive = idx === currentSlide;
-            if (!isActive && !isTransitioning) return null; // Unmount completely when not needed (unless transitioning to/from)
+            const isPrev = idx === prevSlide;
+            // Only render active slide, previous slide (during transition), or initial slide
+            if (!isActive && !(isPrev && isTransitioning)) return null;
             return (
               <div
                 key={idx}
                 className="absolute inset-0 w-full h-screen"
-                style={{
-                  zIndex: isActive ? 10 : 1,
-                  opacity: isActive || isTransitioning ? 1 : 0,
-                  pointerEvents: isActive ? "auto" : "none"
-                }}
+                style={getSlideStyle(idx)}
               >
                 <SlideComp
                   isActive={isActive}
-                  nextSlide={() => changeSlide(idx + 1)}
+                  nextSlide={() => changeSlide(idx === 0 ? 5 : idx + 1)}
                   isMobile={isMobile}
                 />
               </div>

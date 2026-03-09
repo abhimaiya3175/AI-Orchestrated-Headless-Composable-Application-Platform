@@ -38,7 +38,7 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
             desc: "Calculates estimated trip cost from all services.",
             icon: "💰"
         }
-        ];
+    ];
 
     return (
         <div className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
@@ -49,7 +49,7 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
             />
 
             <div className="z-10 text-center mb-12 animate-[fadeUp_0.8s_ease_0.2s_both] px-4">
-                <h2 className="font-orbitron font-bold text-4xl md:text-5xl text-white mb-4">
+                <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-white mb-3 md:mb-4">
                     <SplitText text="PICK. COMPOSE. LAUNCH." delayIndex={0} />
                 </h2>
                 <p className="font-space text-text-muted text-sm md:text-base max-w-2xl mx-auto">
@@ -57,11 +57,11 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
                 </p>
             </div>
 
-            <div className="z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-6 auto-rows-fr">
+            <div className="z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto px-4 sm:px-6 auto-rows-fr">
                 {modules.map((mod, i) => (
                     <div
                         key={i}
-                        className="glass-card spotlight-hover p-6 group transition-all duration-300 hover:-translate-y-1 hover:border-opal cursor-none flex flex-col"
+                        className="glass-card spotlight-hover p-4 sm:p-6 group transition-all duration-300 hover:-translate-y-1 hover:border-opal cursor-none flex flex-col"
                         style={{ animation: isActive ? `fadeUp 0.6s ease ${0.3 + (i * 0.05)}s both` : 'none' }}
                         onMouseEnter={(e) => {
                             if (!isMobile) {
@@ -71,8 +71,8 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
                             }
                         }}
                     >
-                        <div className="text-2xl mb-4 text-opal opacity-80 group-hover:opacity-100 transition-opacity">{mod.icon}</div>
-                        <h3 className="font-orbitron font-semibold text-white text-base mb-2 group-hover:text-opal transition-colors">{mod.title}</h3>
+                        <div className="text-xl sm:text-2xl mb-3 md:mb-4 text-opal opacity-80 group-hover:opacity-100 transition-opacity">{mod.icon}</div>
+                        <h3 className="font-orbitron font-semibold text-white text-sm sm:text-base mb-1 sm:mb-2 group-hover:text-opal transition-colors">{mod.title}</h3>
                         <p className="font-space text-text-muted text-xs leading-relaxed flex-grow">{mod.desc}</p>
                     </div>
                 ))}

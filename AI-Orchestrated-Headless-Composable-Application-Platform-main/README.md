@@ -2,10 +2,12 @@
 
 ## Implementation Plan
 
-### Recent Updates (March 2026)
-* **Frontend Bug Fixes**: Removed deprecated `Pricing` and `Contact` slides, resolved all ESLint typing warnings, and migrated to Next.js `<Image>` tags.
-* **Dependencies**: Generated frozen `requirements.txt` for standardized backend initialization.
-* **Cleanup**: Analyzed and cleared unused or empty layout design files.
+## Recent Updates (March 2026)
+* **Frontend — Responsive Design**: Fully responsive across mobile, tablet, and desktop. Added mobile hamburger menu with animated toggle and touch-friendly nav links.
+* **Frontend — Transitions**: Replaced PPT-style overlay with smooth **Fade + Slide** CSS animations between slides.
+* **Frontend — Navigation**: Navbar now includes all **6 slide links** (Home, Overview, Architecture, AI Core, Modules, AI Planner) with correct active highlighting.
+* **Frontend — UX**: Removed slide page counter, [GET STARTED] button now links directly to AI Planner (slide 6), native cursor restored on touch devices.
+* **Dependencies**: Regenerated `requirements.txt` via `pip freeze` for reproducible builds.
 
 ---
 
@@ -69,10 +71,10 @@ Technologies:
 
 Features:
 
-* 4 marketing slides with parallax, skeleton loaders, and animated counters
-* **AI Chatbot slide** (Slide 5) — sends natural language queries to the backend
-* Responsive design (desktop slide transitions + mobile scroll)
-* Custom cursor, glassmorphism cards, and spotlight hover effects
+* **6 slides** with parallax, skeleton loaders, animated counters, and fade+slide transitions
+* **AI Chatbot slide** (Slide 6 — AI Planner) — sends natural language queries to the backend
+* Fully responsive design — mobile hamburger menu + vertical scroll, desktop keyboard/wheel navigation
+* Custom cursor (hidden on touch devices), glassmorphism cards, and spotlight hover effects
 
 ---
 
@@ -311,22 +313,22 @@ ai-platform/
 frontend/                    # Next.js 14 + Tailwind CSS
    src/
      app/
-       page.tsx              # Main slide controller
+       page.tsx              # Main slide controller (6 slides, fade+slide transitions)
        layout.tsx            # Root layout with fonts
-       globals.css           # Design system tokens
+       globals.css           # Design system tokens + responsive utilities
      components/
-       Navbar.tsx            # Navigation bar with slide links
-       Cursor.tsx            # Custom cursor effect
+       Navbar.tsx            # Responsive navbar: desktop links + mobile hamburger
+       Cursor.tsx            # Custom cursor (hidden on touch devices)
        Animations.tsx        # SplitText + spotlight hover
-       TransitionOverlay.tsx # Slide transition overlay
        slides/
-         Slide1.tsx          # Hero + parallax + marquee
-         Slide2.tsx          # Platform overview
-         Slide4.tsx          # AI Core + animated counters
+         Slide1.tsx          # Hero + parallax + marquee (Get Started → AI Planner)
+         Slide2.tsx          # Platform overview (split panel)
+         Slide3.tsx          # System architecture (animated step cards)
+         Slide4.tsx          # AI Core + neural network bg + animated counters
          Slide5.tsx          # Composable modules grid
-         ChatBot.tsx         # AI Travel Planner chatbot UI
+         ChatBot.tsx         # AI Travel Planner chatbot UI (Slide 6)
    public/
-     images/                 # Generated placeholder images
+     images/                 # Optimized images for each slide
    next.config.mjs
    tailwind.config.ts
    package.json
@@ -346,7 +348,7 @@ services/
    budget_service/main.py    # Budget calculator API (port 8005)
 
 start_backend.py             # Launches all 6 backend services
-requirements.txt             # Frozen Python dependencies
+requirements.txt             # Frozen Python dependencies (pip freeze)
 docker-compose.yml
 .env.example
 ```
@@ -633,7 +635,7 @@ npm run dev
 1. Make sure Ollama is running: `ollama serve`
 2. Start the backend: `python start_backend.py`
 3. Start the frontend: `cd frontend && npm run dev`
-4. Navigate to **Slide 5 (AI Planner)** or click the **[AI PLANNER]** button
+4. Navigate to **Slide 6 (AI Planner)** — click **[AI PLANNER]** in the navbar, or click **[GET STARTED]** on the hero
 5. Type a travel query like: *"Plan a 2-day trip to Goa under ₹15000"*
 6. The AI orchestrator will call all 5 services and return a complete travel plan
 
@@ -1156,6 +1158,6 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 
 ---
 
-**Last Updated**: March 2026  
-**Version**: 1.0.0  
+**Last Updated**: March 2026
+**Version**: 1.1.0
 **Status**: Active Development
