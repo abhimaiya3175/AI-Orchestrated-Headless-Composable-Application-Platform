@@ -2,13 +2,15 @@ import subprocess
 import sys
 import time
 
+python_exe = r".\\venv\\Scripts\\python.exe"
+
 services = [
-    ("Flights Service", "uvicorn services.flight_service.main:app --port 8001 --reload"),
-    ("Hotels Service", "uvicorn services.hotel_service.main:app --port 8002 --reload"),
-    ("Weather Service", "uvicorn services.weather_service.main:app --port 8003 --reload"),
-    ("Places Service", "uvicorn services.places_service.main:app --port 8004 --reload"),
-    ("Budget Service", "uvicorn services.budget_service.main:app --port 8005 --reload"),
-    ("Gateway", "uvicorn gateway.main:app --port 8000 --reload"),
+    ("Flights Service", f"{python_exe} -m uvicorn services.flight_service.main:app --port 8001 --reload"),
+    ("Hotels Service", f"{python_exe} -m uvicorn services.hotel_service.main:app --port 8002 --reload"),
+    ("Weather Service", f"{python_exe} -m uvicorn services.weather_service.main:app --port 8003 --reload"),
+    ("Places Service", f"{python_exe} -m uvicorn services.places_service.main:app --port 8004 --reload"),
+    ("Budget Service", f"{python_exe} -m uvicorn services.budget_service.main:app --port 8005 --reload"),
+    ("Gateway", f"{python_exe} -m uvicorn gateway.main:app --port 8000 --reload"),
 ]
 
 processes = []

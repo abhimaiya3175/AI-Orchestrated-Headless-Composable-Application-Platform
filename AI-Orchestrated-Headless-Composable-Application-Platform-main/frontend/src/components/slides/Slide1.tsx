@@ -89,9 +89,20 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                     >
                         {/* 20 Nodes Network */}
                         <svg className="w-full h-full opacity-10">
-                            {Array(20).fill(0).map((_, i) => (
-                                <circle key={`node-${i}`} cx={`${10 + Math.random() * 80}%`} cy={`${10 + Math.random() * 80}%`} r="3" fill="#A7DADC" />
-                            ))}
+                            {Array(20).fill(0).map((_, i) => {
+                                // deterministic pseudo-random placement so SSR and client match
+                                const cx = 10 + ((i * 37) % 80); // multiply by a prime to spread
+                                const cy = 10 + ((i * 53) % 80);
+                                return (
+                                    <circle
+                                        key={`node-${i}`}
+                                        cx={`${cx}%`}
+                                        cy={`${cy}%`}
+                                        r="3"
+                                        fill="#A7DADC"
+                                    />
+                                );
+                            })}
                         </svg>
                     </div>
                 )}
