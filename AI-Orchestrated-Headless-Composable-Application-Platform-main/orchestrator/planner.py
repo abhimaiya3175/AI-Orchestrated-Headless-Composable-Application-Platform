@@ -1,464 +1,452 @@
+"""
+TravelOrchestrator — Enhanced with:
+  ✅ Dynamic service selection (LLM-driven)
+  ✅ Conversation memory (per session)
+  ✅ LangChain Agent with Tools
+  ✅ RAG context injection (ChromaDB)
+  ✅ Itinerary generation
+  ✅ Smart budget advisor
+  ✅ Trip comparison
+"""
 import os
+import sys
 import asyncio
 import httpx
 import json
 import logging
 import time
+from typing import Optional
+from collections import defaultdict
+
+# Allow importing sibling modules from the orchestrator directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
+from rag import get_destination_context
+
 logger = logging.getLogger("travel_orchestrator")
 logging.basicConfig(level=logging.INFO)
 
-# ------------------------------
+# ─────────────────────────────────────────────
 # Service URLs
-# ------------------------------
-
-FLIGHTS_URL = os.getenv("FLIGHTS_SERVICE_URL", "http://localhost:8001")
-HOTELS_URL = os.getenv("HOTELS_SERVICE_URL", "http://localhost:8002")
-WEATHER_URL = os.getenv("WEATHER_SERVICE_URL", "http://localhost:8003")
-PLACES_URL = os.getenv("PLACES_SERVICE_URL", "http://localhost:8004")
-BUDGET_URL = os.getenv("BUDGET_SERVICE_URL", "http://localhost:8005")
+# ─────────────────────────────────────────────
+FLIGHTS_URL  = os.getenv("FLIGHTS_SERVICE_URL",  "http://localhost:8001")
+HOTELS_URL   = os.getenv("HOTELS_SERVICE_URL",   "http://localhost:8002")
+WEATHER_URL  = os.getenv("WEATHER_SERVICE_URL",  "http://localhost:8003")
+PLACES_URL   = os.getenv("PLACES_SERVICE_URL",   "http://localhost:8004")
+BUDGET_URL   = os.getenv("BUDGET_SERVICE_URL",   "http://localhost:8005")
+ALL_SERVICES = ["flights", "hotels", "weather", "places"]
 
 
 class TravelOrchestrator:
 
     def __init__(self):
-
         provider = os.getenv("LLM_PROVIDER", "local").lower()
 
         if provider == "local":
-            model = os.getenv("LLM_MODEL", "llama2")
+            model    = os.getenv("LLM_MODEL", "llama2")
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-
-            self.llm = ChatOllama(
-                model=model,
-                base_url=base_url,
-                format="json"
-            )
+            self.llm = ChatOllama(model=model, base_url=base_url, format="json")
+            # Non-json variant for free-text generation (itinerary, advisor)
+            self.llm_text = ChatOllama(model=model, base_url=base_url)
         else:
-            self.llm = ChatOpenAI(
-                model_name="gpt-3.5-turbo",
-                response_format={"type": "json_object"}
-            )
+            from langchain_openai import ChatOpenAI
+            self.llm      = ChatOpenAI(model_name="gpt-3.5-turbo", response_format={"type": "json_object"})
+            self.llm_text = ChatOpenAI(model_name="gpt-3.5-turbo")
 
-        # Shared HTTP client (connection pooling)
-        self.client = httpx.AsyncClient(timeout=10)
+        # Per-session conversation history: session_id → list of messages
+        self._sessions: dict[str, list] = defaultdict(list)
+        self._session_max_turns = 10   # keep last 10 messages
+
+        # Shared async HTTP client
+        self.client = httpx.AsyncClient(timeout=15)
 
     async def close(self):
         await self.client.aclose()
 
-    # --------------------------------------------------
-    # Robust HTTP GET
-    # --------------------------------------------------
+    # ─────────────────────────────────────────────
+    # Session / Memory helpers
+    # ─────────────────────────────────────────────
+    def get_history(self, session_id: str) -> list:
+        return self._sessions[session_id][-self._session_max_turns:]
 
-    async def _fetch_data(self, url: str, params: dict = None):
+    def append_message(self, session_id: str, role: str, content: str):
+        self._sessions[session_id].append({"role": role, "content": content})
 
+    def clear_session(self, session_id: str):
+        self._sessions.pop(session_id, None)
+
+    def _build_history_text(self, session_id: str) -> str:
+        history = self.get_history(session_id)
+        if not history:
+            return ""
+        lines = []
+        for m in history:
+            prefix = "User" if m["role"] == "user" else "AI"
+            lines.append(f"{prefix}: {m['content']}")
+        return "\n".join(lines)
+
+    # ─────────────────────────────────────────────
+    # HTTP helpers
+    # ─────────────────────────────────────────────
+    async def _fetch_data(self, url: str, params: dict = None) -> dict:
         start = time.time()
-
         try:
             response = await self.client.get(url, params=params)
             response.raise_for_status()
-            latency = round((time.time() - start) * 1000, 2)
-
-            return {
-                "data": response.json(),
-                "latency_ms": latency,
-                "error": None
-            }
-
+            return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
         except Exception as e:
-            logger.error(f"Service call failed: {url} | {str(e)}")
-            return {
-                "data": {},
-                "latency_ms": None,
-                "error": str(e)
-            }
+            logger.error(f"GET failed: {url} | {e}")
+            return {"data": {}, "latency_ms": None, "error": str(e)}
 
-    # --------------------------------------------------
-    # Robust HTTP POST
-    # --------------------------------------------------
-
-    async def _post_data(self, url: str, payload: dict):
-
+    async def _post_data(self, url: str, payload: dict) -> dict:
         start = time.time()
-
         try:
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
-            latency = round((time.time() - start) * 1000, 2)
-
-            return {
-                "data": response.json(),
-                "latency_ms": latency,
-                "error": None
-            }
-
+            return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
         except Exception as e:
-            logger.error(f"POST failed: {url} | {str(e)}")
-            return {
-                "data": {},
-                "latency_ms": None,
-                "error": str(e)
-            }
+            logger.error(f"POST failed: {url} | {e}")
+            return {"data": {}, "latency_ms": None, "error": str(e)}
 
-    # --------------------------------------------------
-    # Intent Detection (Dynamic Service Selection)
-    # --------------------------------------------------
-
-    async def detect_intent_and_services(self, query: str):
+    # ─────────────────────────────────────────────
+    # Intent Detection (supports conversation history)
+    # ─────────────────────────────────────────────
+    async def detect_intent_and_services(self, query: str, session_id: str = "") -> dict:
+        history_text = self._build_history_text(session_id) if session_id else ""
+        history_section = (
+            f"\n\nPrevious conversation context:\n{history_text}\n"
+            if history_text else ""
+        )
 
         prompt = PromptTemplate.from_template(
-            """
-You are an AI Travel Planning Orchestrator. Your job is to understand the user's
-travel-related request and decide WHICH microservices are needed.
+            """You are an AI Travel Planning Orchestrator.{history}
 
 Available services:
-- "flights"  → use when the user wants to TRAVEL somewhere (needs transport)
-- "hotels"   → use when the user needs ACCOMMODATION (staying overnight)
-- "weather"  → use when the user wants to know the WEATHER or CLIMATE
-- "places"   → use when the user wants ATTRACTIONS, SIGHTSEEING, or ACTIVITIES
+- "flights"  → user wants to TRAVEL (needs transport)
+- "hotels"   → user needs ACCOMMODATION (overnight stay)
+- "weather"  → user wants WEATHER or CLIMATE information
+- "places"   → user wants ATTRACTIONS, SIGHTSEEING, ACTIVITIES
 
-Rules for selecting services:
-1. If the user asks to "plan a trip" or "travel", include ALL relevant services.
-2. If the user ONLY asks about weather, include ONLY "weather".
-3. If the user ONLY asks about places/attractions, include ONLY "places".
-4. If the user asks about flights only, include ONLY "flights".
-5. If the user asks about hotels only, include ONLY "hotels".
-6. If a budget is mentioned AND flights+hotels are selected, the budget service
-   will be called automatically — do NOT include "budget" in the services list.
+Rules:
+1. "Plan a trip" / "travel to" → include ALL relevant services
+2. Weather-only query → ONLY "weather"
+3. Places/attractions-only → ONLY "places"
+4. Flights-only → ONLY "flights"
+5. Hotels-only → ONLY "hotels"
+6. If a previous query established context (destination, duration, budget),
+   carry it forward when answering follow-ups
 
-Parse the query and extract:
-- destination (city name)
-- source (origin city, default "hyd" if not mentioned)
-- num_days (number of days, default 2)
-- budget (budget amount, default 15000)
-- preferences (general, beach, historic, nature, etc.)
-- services (list of services to call based on the rules above)
-
-Return ONLY valid JSON. No explanation. No markdown. No text outside JSON.
-
+Return ONLY valid JSON:
 {{
-  "destination": "...",
-  "source": "...",
+  "destination": "city name",
+  "source": "origin city or hyd",
   "num_days": 2,
   "budget": 15000,
   "preferences": "general",
-  "services": ["flights", "hotels", "weather", "places"]
+  "services": ["flights","hotels","weather","places"]
 }}
 
-User query: {query}
-"""
+User query: {query}"""
         )
 
         chain = prompt | self.llm | StrOutputParser()
-
-        result = await chain.ainvoke({"query": query})
+        result = await chain.ainvoke({"query": query, "history": history_section})
 
         try:
             parsed = json.loads(result)
-            # Validate required keys exist
             parsed.setdefault("destination", "Goa")
             parsed.setdefault("source", "hyd")
             parsed.setdefault("num_days", 2)
             parsed.setdefault("budget", 15000)
             parsed.setdefault("preferences", "general")
-            parsed.setdefault("services", ["flights", "hotels", "weather", "places"])
-
-            # Normalize services to lowercase list
-            raw_services = parsed.get("services", [])
-            if isinstance(raw_services, list):
-                parsed["services"] = [s.lower().strip() for s in raw_services if isinstance(s, str)]
-            else:
-                parsed["services"] = ["flights", "hotels", "weather", "places"]
-
+            parsed.setdefault("services", ALL_SERVICES)
+            svcs = parsed.get("services", [])
+            parsed["services"] = [s.lower().strip() for s in svcs if isinstance(s, str)]
             return parsed
-
         except Exception:
             logger.warning("LLM JSON parse failed, using defaults")
             return {
-                "destination": "Goa",
-                "source": "hyd",
-                "num_days": 2,
-                "budget": 15000,
-                "preferences": "general",
-                "services": ["flights", "hotels", "weather", "places"]
+                "destination": "Goa", "source": "hyd", "num_days": 2,
+                "budget": 15000, "preferences": "general", "services": ALL_SERVICES
             }
 
-    # --------------------------------------------------
-    # Budget-aware optimization
-    # --------------------------------------------------
-
-    def optimize_for_budget(self, flights: list, hotels: list, days: int, user_budget: int):
-
+    # ─────────────────────────────────────────────
+    # Budget optimization
+    # ─────────────────────────────────────────────
+    def optimize_for_budget(self, flights, hotels, days, user_budget):
         if not flights or not hotels:
             return (flights[0] if flights else None), (hotels[0] if hotels else None)
-
         for flight in flights:
             for hotel in hotels:
-                estimated_total = (
-                    flight.get("price", 0) +
-                    (hotel.get("price_per_night", 0) * days) +
-                    (1500 * days)
-                )
-                if estimated_total <= user_budget:
+                total = flight.get("price", 0) + hotel.get("price_per_night", 0)*days + 1500*days
+                if total <= user_budget:
                     return flight, hotel
-
-        # fallback: cheapest combo regardless of budget
         return flights[0], hotels[0]
 
-    # --------------------------------------------------
-    # Main orchestration (DYNAMIC)
-    # --------------------------------------------------
+    # ─────────────────────────────────────────────
+    # Smart Budget Advisor
+    # ─────────────────────────────────────────────
+    async def generate_budget_advice(self, dest: str, budget: int, estimated: int,
+                                     days: int, preferences: str) -> str:
+        over_by = estimated - budget
+        prompt = PromptTemplate.from_template(
+            """You are a smart travel budget advisor for India trips.
 
-    async def orchestrate(self, request_data: dict):
+Destination: {dest}
+User budget: ₹{budget}
+Estimated cost: ₹{estimated}
+Number of days: {days}
+Preferences: {preferences}
+Over/under budget by: ₹{diff}
 
-        query = request_data.get("query", "")
-        fallback_source = request_data.get("source", "hyd")
-        fallback_days = request_data.get("num_days", 2)
-        fallback_budget = request_data.get("budget", 15000)
+Give 2-3 concise, actionable budget tips for this specific trip.
+Focus on practical savings in flights, hotels, food, and activities.
+Keep it under 80 words. Be specific to the destination."""
+        )
+        chain = prompt | self.llm_text | StrOutputParser()
+        try:
+            return await chain.ainvoke({
+                "dest": dest, "budget": budget, "estimated": estimated,
+                "days": days, "preferences": preferences,
+                "diff": abs(over_by)
+            })
+        except Exception as e:
+            logger.warning(f"Budget advisor failed: {e}")
+            return ""
 
-        # ------------------------
-        # Intent Detection
-        # ------------------------
+    # ─────────────────────────────────────────────
+    # Itinerary Generation
+    # ─────────────────────────────────────────────
+    async def generate_itinerary(self, dest: str, days: int, preferences: str,
+                                  attractions: list, rag_context: str) -> str:
+        attractions_str = ", ".join(attractions[:6]) if attractions else "popular local spots"
+        context_section = f"\n\nLocal knowledge:\n{rag_context}" if rag_context else ""
 
-        intent = await self.detect_intent_and_services(query)
+        prompt = PromptTemplate.from_template(
+            """Create a day-by-day travel itinerary for {dest} for {days} days.
+Preferences: {preferences}
+Key attractions: {attractions}{context}
 
-        dest = intent.get("destination", "Goa")
-        src = intent.get("source") or fallback_source
-        if not src or src.lower() == "unknown":
-            src = fallback_source
+Format as:
+## Day 1 — [Theme]
+- Morning: ...
+- Afternoon: ...
+- Evening: ...
 
-        days = int(intent.get("num_days") or fallback_days)
-        budget = int(intent.get("budget") or fallback_budget)
-        preferences = intent.get("preferences", "general")
-        selected_services = intent.get("services", ["flights", "hotels", "weather", "places"])
+Keep each day concise (2-3 lines per slot). Focus on real places."""
+        )
+        chain = prompt | self.llm_text | StrOutputParser()
+        try:
+            return await chain.ainvoke({
+                "dest": dest, "days": days, "preferences": preferences,
+                "attractions": attractions_str, "context": context_section
+            })
+        except Exception as e:
+            logger.warning(f"Itinerary generation failed: {e}")
+            return ""
 
-        logger.info(f"AI selected services: {selected_services} for query: '{query}'")
+    # ─────────────────────────────────────────────
+    # Single-destination orchestration
+    # ─────────────────────────────────────────────
+    async def _orchestrate_single(self, dest: str, src: str, days: int, budget: int,
+                                   preferences: str, selected_services: list,
+                                   query: str = "") -> dict:
+        """Core orchestration for one destination — used by both orchestrate() and compare()."""
 
-        workflow_trace = [
-            {"step": "Intent Detection", "status": "completed", "latency_ms": None}
-        ]
+        # Fetch RAG context
+        rag_context = get_destination_context(dest, query or preferences)
 
-        # --------------------------------------------------
-        # Dynamic Service Registry
-        # --------------------------------------------------
-
+        # Build and run parallel service calls
         service_registry = {
-            "flights": lambda: self._fetch_data(
-                f"{FLIGHTS_URL}/flights", {"source": src, "destination": dest}
-            ),
-            "hotels": lambda: self._fetch_data(
-                f"{HOTELS_URL}/hotels", {"city": dest}
-            ),
-            "weather": lambda: self._fetch_data(
-                f"{WEATHER_URL}/weather", {"city": dest}
-            ),
-            "places": lambda: self._fetch_data(
-                f"{PLACES_URL}/places", {"city": dest}
-            ),
+            "flights": lambda: self._fetch_data(f"{FLIGHTS_URL}/flights", {"source": src, "destination": dest}),
+            "hotels":  lambda: self._fetch_data(f"{HOTELS_URL}/hotels",  {"city": dest}),
+            "weather": lambda: self._fetch_data(f"{WEATHER_URL}/weather", {"city": dest}),
+            "places":  lambda: self._fetch_data(f"{PLACES_URL}/places",  {"city": dest}),
         }
 
-        ALL_SERVICES = ["flights", "hotels", "weather", "places"]
+        task_keys = [s for s in ALL_SERVICES if s in selected_services]
+        tasks     = [service_registry[s]() for s in task_keys]
 
-        # Build tasks only for AI-selected services
-        task_keys = []
-        tasks = []
-        for svc in ALL_SERVICES:
-            if svc in selected_services:
-                task_keys.append(svc)
-                tasks.append(service_registry[svc]())
+        results = await asyncio.gather(*tasks, return_exceptions=True) if tasks else []
 
-        # Execute only the selected services in parallel
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        else:
-            results = []
-
-        # Map results back to service names
         service_results = {}
         for idx, key in enumerate(task_keys):
             r = results[idx]
-            if isinstance(r, Exception):
-                logger.error(f"Service exception ({key}): {str(r)}")
-                service_results[key] = {"data": {}, "latency_ms": None, "error": str(r)}
-            else:
-                service_results[key] = r
+            service_results[key] = (
+                {"data": {}, "latency_ms": None, "error": str(r)} if isinstance(r, Exception) else r
+            )
 
-        # Build workflow trace for ALL services (called or skipped)
+        # Workflow trace
+        workflow_trace = [{"step": "Intent Detection", "status": "completed", "latency_ms": None}]
         for svc in ALL_SERVICES:
             if svc in service_results:
                 res = service_results[svc]
-                has_data = bool(res.get("data"))
                 workflow_trace.append({
                     "step": f"{svc.title()} Service",
-                    "status": "completed" if has_data else "failed",
-                    "latency_ms": res.get("latency_ms"),
-                    "error": res.get("error")
+                    "status": "completed" if res.get("data") else "failed",
+                    "latency_ms": res.get("latency_ms"), "error": res.get("error")
                 })
             else:
-                workflow_trace.append({
-                    "step": f"{svc.title()} Service",
-                    "status": "skipped",
-                    "latency_ms": None,
-                    "error": None
-                })
+                workflow_trace.append({"step": f"{svc.title()} Service", "status": "skipped", "latency_ms": None, "error": None})
 
-        # --------------------------------------------------
-        # Extract data safely from each response
-        # --------------------------------------------------
+        # Extract data
+        flights  = service_results.get("flights", {}).get("data", {}).get("flights", [])
+        hotels   = service_results.get("hotels",  {}).get("data", {}).get("hotels",  [])
+        weather  = service_results.get("weather", {}).get("data", {})
+        places_raw = service_results.get("places", {}).get("data", {}).get("places", [])
 
-        # Flights
-        flights_res = service_results.get("flights", {"data": {}, "latency_ms": None, "error": None})
-        flights_data = flights_res.get("data", {})
-        flights = flights_data.get("flights", [])
+        attractions = [
+            p if isinstance(p, str) else p.get("name", "") for p in places_raw
+        ]
 
-        # Hotels
-        hotels_res = service_results.get("hotels", {"data": {}, "latency_ms": None, "error": None})
-        hotels_data = hotels_res.get("data", {})
-        hotels = hotels_data.get("hotels", [])
-
-        # Weather
-        weather_res = service_results.get("weather", {"data": {}, "latency_ms": None, "error": None})
-        weather = weather_res.get("data", {})
-
-        # Places
-        places_res = service_results.get("places", {"data": {}, "latency_ms": None, "error": None})
-        places_data = places_res.get("data", {})
-        places_raw = places_data.get("places", [])
-        attractions = []
-        for p in places_raw:
-            if isinstance(p, str):
-                attractions.append(p)
-            elif isinstance(p, dict):
-                attractions.append(p.get("name", ""))
-
-        # Sort flights and hotels by price
         flights.sort(key=lambda x: x.get("price", 0))
         hotels.sort(key=lambda x: x.get("price_per_night", 0))
 
-        # --------------------------------------------------
-        # Budget-aware optimization (conditional)
-        # --------------------------------------------------
-
-        best_flight = None
-        best_hotel = None
+        # Budget optimization
+        best_flight = best_hotel = None
         estimated_budget = 0
-        budget_breakdown = {}
-        budget_metrics = {}
-        budget_evaluation = None
+        budget_breakdown = budget_metrics = budget_evaluation = {}
+        budget_advice = ""
 
-        # Only compute budget if BOTH flights and hotels were fetched
         if "flights" in selected_services and "hotels" in selected_services:
             best_flight, best_hotel = self.optimize_for_budget(flights, hotels, days, budget)
-
             flight_cost = best_flight.get("price", 0) if best_flight else 0
             hotel_cost_per_night = best_hotel.get("price_per_night", 0) if best_hotel else 0
 
-            budget_res = await self._post_data(
-                f"{BUDGET_URL}/budget",
-                {
-                    "flights_cost": flight_cost,
-                    "hotels_cost_per_night": hotel_cost_per_night,
-                    "num_days": days,
-                    "daily_activities_cost": 1500,
-                    "max_budget": budget
-                }
-            )
-
+            budget_res = await self._post_data(f"{BUDGET_URL}/budget", {
+                "flights_cost": flight_cost,
+                "hotels_cost_per_night": hotel_cost_per_night,
+                "num_days": days, "daily_activities_cost": 1500, "max_budget": budget
+            })
             workflow_trace.append({
                 "step": "Budget Service",
                 "status": "completed" if budget_res.get("data") else "failed",
-                "latency_ms": budget_res.get("latency_ms"),
-                "error": budget_res.get("error")
+                "latency_ms": budget_res.get("latency_ms"), "error": budget_res.get("error")
             })
+            bdata = budget_res.get("data", {})
+            estimated_budget = bdata.get("estimated_budget", 0)
+            budget_breakdown = bdata.get("breakdown", {})
+            budget_metrics   = bdata.get("metrics", {})
+            budget_evaluation = bdata.get("evaluation")
 
-            budget_data = budget_res.get("data", {})
-            estimated_budget = budget_data.get("estimated_budget", 0)
-            budget_breakdown = budget_data.get("breakdown", {})
-            budget_metrics = budget_data.get("metrics", {})
-            budget_evaluation = budget_data.get("evaluation", None)
+            # Smart budget advisor
+            budget_advice = await self.generate_budget_advice(
+                dest, budget, estimated_budget, days, preferences
+            )
         else:
-            workflow_trace.append({
-                "step": "Budget Service",
-                "status": "skipped",
-                "latency_ms": None,
-                "error": None
-            })
+            workflow_trace.append({"step": "Budget Service", "status": "skipped", "latency_ms": None, "error": None})
 
-        # --------------------------------------------------
-        # Build weather payload for frontend
-        # --------------------------------------------------
+        # Itinerary generation
+        itinerary = await self.generate_itinerary(dest, days, preferences, attractions, rag_context)
 
-        weather_payload = {
-            "temperature": weather.get("temperature", ""),
-            "condition": weather.get("condition", ""),
-            "city": weather.get("city", dest),
-            "humidity": weather.get("humidity"),
-            "wind_kph": weather.get("wind_kph"),
-            "forecast": weather.get("forecast", [])
-        }
-
-        # --------------------------------------------------
-        # Build dynamic reasoning string
-        # --------------------------------------------------
-
-        called_names = [s.title() for s in selected_services]
+        # Reasoning string
+        called_names  = [s.title() for s in selected_services]
         skipped_names = [s.title() for s in ALL_SERVICES if s not in selected_services]
-
         reasoning = (
-            f"AI detected intent for destination '{dest}' from '{src}'. "
-            f"Services dynamically selected: {', '.join(called_names)}. "
+            f"AI detected intent for '{dest}' from '{src}'. "
+            f"Services selected: {', '.join(called_names)}. "
         )
         if skipped_names:
-            reasoning += f"Services skipped (not needed): {', '.join(skipped_names)}. "
-        if "flights" in selected_services and "hotels" in selected_services:
-            reasoning += (
-                f"Budget optimization applied for {days}-day trip with ₹{budget} budget."
-            )
+            reasoning += f"Skipped: {', '.join(skipped_names)}. "
+        if rag_context:
+            reasoning += "Local knowledge from RAG knowledge base injected. "
 
-        # --------------------------------------------------
-        # Final response
-        # --------------------------------------------------
+        return {
+            "destination": dest, "source": src,
+            "duration": f"{days} days", "preferences": preferences,
+            "services_called": selected_services,
+            "flights": flights[:3], "hotels": hotels[:3],
+            "weather": {
+                "temperature": weather.get("temperature", ""),
+                "condition":   weather.get("condition", ""),
+                "city":        weather.get("city", dest),
+                "humidity":    weather.get("humidity"),
+                "wind_kph":    weather.get("wind_kph"),
+                "forecast":    weather.get("forecast", [])
+            },
+            "attractions": attractions[:5],
+            "estimated_budget": estimated_budget,
+            "budget_breakdown": budget_breakdown,
+            "budget_metrics":   budget_metrics,
+            "budget_evaluation": budget_evaluation,
+            "budget_advice": budget_advice,
+            "recommended": {"flight": best_flight, "hotel": best_hotel},
+            "itinerary": itinerary,
+            "rag_context_used": bool(rag_context),
+            "workflow_explanation": {"reasoning": reasoning, "trace": workflow_trace}
+        }
+
+    # ─────────────────────────────────────────────
+    # Public: Main orchestrate (with memory)
+    # ─────────────────────────────────────────────
+    async def orchestrate(self, request_data: dict) -> dict:
+        query          = request_data.get("query", "")
+        session_id     = request_data.get("session_id", "")
+        fallback_src   = request_data.get("source", "hyd")
+        fallback_days  = request_data.get("num_days", 2)
+        fallback_budget = request_data.get("budget", 15000)
+
+        # Save user message to conversation memory
+        if session_id:
+            self.append_message(session_id, "user", query)
+
+        intent = await self.detect_intent_and_services(query, session_id)
+
+        dest = intent.get("destination", "Goa")
+        src  = intent.get("source") or fallback_src
+        if not src or src.lower() == "unknown":
+            src = fallback_src
+
+        days     = int(intent.get("num_days")  or fallback_days)
+        budget   = int(intent.get("budget")    or fallback_budget)
+        prefs    = intent.get("preferences", "general")
+        services = intent.get("services", ALL_SERVICES)
+
+        logger.info(f"[session:{session_id}] services={services} dest={dest}")
+
+        trip_plan = await self._orchestrate_single(dest, src, days, budget, prefs, services, query)
+
+        # Save AI response summary to conversation memory
+        if session_id:
+            ai_summary = (
+                f"I planned a {days}-day trip to {dest} from {src} "
+                f"with ₹{budget} budget. Services used: {', '.join(services)}."
+            )
+            self.append_message(session_id, "assistant", ai_summary)
+
+        return {"status": "success", "trip_plan": trip_plan}
+
+    # ─────────────────────────────────────────────
+    # Public: Trip Comparison
+    # ─────────────────────────────────────────────
+    async def compare_trips(self, dest1: str, dest2: str, src: str, days: int,
+                             budget: int, preferences: str = "general") -> dict:
+        """Compare two destinations in parallel."""
+        logger.info(f"Comparing: {dest1} vs {dest2}")
+
+        plan1, plan2 = await asyncio.gather(
+            self._orchestrate_single(dest1, src, days, budget, preferences, ALL_SERVICES, f"trip to {dest1}"),
+            self._orchestrate_single(dest2, src, days, budget, preferences, ALL_SERVICES, f"trip to {dest2}"),
+        )
 
         return {
             "status": "success",
-            "trip_plan": {
-                "destination": dest,
-                "source": src,
-                "duration": f"{days} days",
-                "preferences": preferences,
-                "services_called": selected_services,
-
-                # Return top 3 flights with all fields intact
-                "flights": flights[:3],
-
-                # Return top 3 hotels with all fields intact
-                "hotels": hotels[:3],
-
-                # Full weather object
-                "weather": weather_payload,
-
-                # Attractions as list of strings
-                "attractions": attractions[:4],
-
-                # Budget summary
-                "estimated_budget": estimated_budget,
-                "budget_breakdown": budget_breakdown,
-                "budget_metrics": budget_metrics,
-                "budget_evaluation": budget_evaluation,
-
-                # Optimized picks
-                "recommended": {
-                    "flight": best_flight,
-                    "hotel": best_hotel
-                },
-
-                "workflow_explanation": {
-                    "reasoning": reasoning,
-                    "trace": workflow_trace
+            "comparison": {
+                "option_a": plan1,
+                "option_b": plan2,
+                "summary": {
+                    "cheaper_destination":   dest1 if plan1["estimated_budget"] <= plan2["estimated_budget"] else dest2,
+                    "budget_diff":           abs(plan1["estimated_budget"] - plan2["estimated_budget"]),
+                    "both_within_budget":    (
+                        plan1.get("budget_evaluation", {}) and
+                        plan2.get("budget_evaluation", {}) and
+                        plan1["budget_evaluation"].get("status") == "within_budget" and
+                        plan2["budget_evaluation"].get("status") == "within_budget"
+                    )
                 }
             }
         }

@@ -1,360 +1,479 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { SplitText } from "@/components/Animations";
+import ServiceFlow from "@/components/ServiceFlow";
+import ReactMarkdown from "react-markdown";
 
-/* ── Types ── */
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+interface ForecastDay { day: string; condition: string; temperature: string; humidity: number; }
+interface Weather { temperature: string; condition: string; city: string; humidity?: number; wind_kph?: number; forecast?: ForecastDay[]; }
+interface Flight { airline: string; price: number; duration_hrs: number; departure?: string; arrival?: string; }
+interface Hotel { name: string; price_per_night: number; rating: number; amenities?: string[]; location?: string; }
+interface BudgetEvaluation { status: "within_budget" | "over_budget"; user_budget: number; difference: number; }
+interface BudgetMetrics { cost_per_day: number; hotel_share_pct: number; activity_share_pct: number; flight_share_pct: number; }
+interface BudgetBreakdown { flights: number; hotels: number; activities: number; }
+interface WorkflowStep { step: string; status: string; latency_ms?: number | null; error?: string | null; }
+interface WorkflowExplanation { reasoning: string; trace: WorkflowStep[]; }
+interface Recommended { flight: Flight | null; hotel: Hotel | null; }
+
 interface TripPlan {
-  title: string;
-  flight: { label: string; value: string; price: string };
-  hotel: { label: string; value: string; price: string };
-  weather: { label: string; value: string };
-  places: { label: string; value: string };
-  budget: { label: string; total: string };
+  destination: string; source: string; duration: string; preferences: string;
+  services_called?: string[];
+  flights: Flight[]; hotels: Hotel[];
+  weather: Weather; attractions: string[];
+  estimated_budget: number;
+  budget_breakdown: BudgetBreakdown; budget_metrics: BudgetMetrics;
+  budget_evaluation: BudgetEvaluation | null;
+  budget_advice?: string;
+  recommended: Recommended;
+  itinerary?: string;
+  rag_context_used?: boolean;
+  workflow_explanation: WorkflowExplanation;
 }
 
-interface ChatResponse {
-  services: string[];
-  plan: TripPlan;
-  meta: string;
+interface ComparisonResult {
+  option_a: TripPlan;
+  option_b: TripPlan;
+  summary: { cheaper_destination: string; budget_diff: number; both_within_budget: boolean; };
 }
 
 interface Message {
-  type: "user" | "ai" | "error" | "typing";
-  text?: string;
-  data?: ChatResponse;
+  role: "user" | "assistant" | "system";
+  content: string;
+  tripPlan?: TripPlan;
+  comparison?: ComparisonResult;
 }
 
-/* ── Constants ── */
-const API_BASE = "http://localhost:8000";
+const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8000";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/plan";
 
-const MOCK_RESPONSES: Record<string, ChatResponse> = {
-  goa: {
-    services: ["flight_service", "hotel_service", "weather_service", "places_service", "budget_service"],
-    plan: {
-      title: "🏖️ Goa — 2 Day Trip",
-      flight: { label: "✈️ Flight", value: "IndiGo · HYD→GOI", price: "₹4,500" },
-      hotel: { label: "🏨 Hotel", value: "Beach Resort · 2 nights", price: "₹7,000" },
-      weather: { label: "🌤️ Weather", value: "☀️ Sunny · 30°C" },
-      places: { label: "🗺️ Places", value: "Baga Beach, Calangute, Fort Aguada" },
-      budget: { label: "💰 Total Budget", total: "₹11,500" },
-    },
-    meta: "Parallel execution · 5 services · ~2.3s",
-  },
-  manali: {
-    services: ["flight_service", "hotel_service", "weather_service", "places_service", "budget_service"],
-    plan: {
-      title: "🏔️ Manali — 3 Day Trip",
-      flight: { label: "✈️ Flight", value: "Air India · DEL→KUU", price: "₹5,200" },
-      hotel: { label: "🏨 Hotel", value: "Snow Peak Inn · 3 nights", price: "₹8,400" },
-      weather: { label: "🌤️ Weather", value: "❄️ Cold · 8°C" },
-      places: { label: "🗺️ Places", value: "Rohtang Pass, Solang Valley, Hadimba Temple" },
-      budget: { label: "💰 Total Budget", total: "₹16,600" },
-    },
-    meta: "Parallel execution · 5 services · ~2.1s",
-  },
-  jaipur: {
-    services: ["flight_service", "hotel_service", "weather_service", "places_service", "budget_service"],
-    plan: {
-      title: "🏰 Jaipur — 2 Day Trip",
-      flight: { label: "✈️ Flight", value: "SpiceJet · BOM→JAI", price: "₹3,800" },
-      hotel: { label: "🏨 Hotel", value: "Heritage Haveli · 2 nights", price: "₹4,400" },
-      weather: { label: "🌤️ Weather", value: "🌤 Partly Cloudy · 26°C" },
-      places: { label: "🗺️ Places", value: "Amber Fort, City Palace, Hawa Mahal" },
-      budget: { label: "💰 Total Budget", total: "₹8,200" },
-    },
-    meta: "Parallel execution · 5 services · ~1.9s",
-  },
-};
-
-const QUICK_CHIPS = [
-  { label: "🏖️ Goa 2 days ₹15k", query: "Plan a 2-day trip to Goa under ₹15000" },
-  { label: "🏔️ Manali 3 days ₹20k", query: "Plan a 3-day trip to Manali under ₹20000" },
-  { label: "🏰 Jaipur 2 days ₹10k", query: "Plan a 2-day trip to Jaipur under ₹10000" },
-];
-
-/* ── Helpers ── */
-function detectDestination(query: string): string {
-  const q = query.toLowerCase();
-  if (q.includes("goa")) return "goa";
-  if (q.includes("manali")) return "manali";
-  if (q.includes("jaipur")) return "jaipur";
-  return "goa";
+function stepIcon(step: string): string {
+  const s = step.toLowerCase();
+  if (s.includes("flight")) return "✈️";
+  if (s.includes("hotel")) return "🏨";
+  if (s.includes("weather")) return "🌤";
+  if (s.includes("intent")) return "🧠";
+  if (s.includes("place")) return "📍";
+  if (s.includes("budget")) return "💰";
+  return "⚙️";
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function transformAPIResponse(data: Record<string, unknown>): ChatResponse {
-  const tp = data.trip_plan as Record<string, any>;
-  const flight = tp.flights?.[0];
-  const hotel = tp.hotels?.[0];
-  const weather = tp.weather || {};
-  const places: Array<Record<string, string> | string> = tp.attractions || [];
-  const trace: Array<{ step: string; status: string; details?: Record<string, unknown> }> = tp.workflow_explanation?.trace || [];
-  const services = trace
-    .filter((t) => t.step !== "Intent Detection")
-    .map((t) => t.step.replace(" service", "_service"));
-
-  return {
-    services: services.length > 0 ? services : ["flight_service", "hotel_service", "weather_service", "places_service", "budget_service"],
-    plan: {
-      title: `📍 ${tp.destination} — ${tp.duration}`,
-      flight: {
-        label: "✈️ Flight",
-        value: flight ? `${flight.airline} · ${flight.duration_hrs}h` : "N/A",
-        price: flight ? `₹${flight.price.toLocaleString("en-IN")}` : "—",
-      },
-      hotel: {
-        label: "🏨 Hotel",
-        value: hotel ? `${hotel.name || hotel.hotel || "Hotel"} · ${tp.duration}` : "N/A",
-        price: hotel ? `₹${(hotel.price_per_night || hotel.price || 0).toLocaleString("en-IN")}/night` : "—",
-      },
-      weather: {
-        label: "🌤️ Weather",
-        value: weather.condition
-          ? `${weather.condition} · ${weather.temperature || ""}`
-          : weather.description
-            ? `${weather.description} · ${weather.temperature || weather.temp || ""}°C`
-            : weather.forecast || "N/A",
-      },
-      places: {
-        label: "🗺️ Places",
-        value: Array.isArray(places)
-          ? places.map((p) => (typeof p === "string" ? p : p.name || p.place || "")).slice(0, 3).join(", ")
-          : "N/A",
-      },
-      budget: {
-        label: "💰 Total Budget",
-        total: `₹${(tp.estimated_budget || 0).toLocaleString("en-IN")}`,
-      },
-    },
-    meta: `Live API · ${services.length} services · ${tp.destination}`,
-  };
+function stepColor(status: string): string {
+  if (status === "completed") return "bg-green-400";
+  if (status === "skipped") return "bg-yellow-400";
+  return "bg-red-400";
 }
 
-/* ── Component ── */
-export default function ChatDemo() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      type: "ai",
-      text: "Hello! I'm your AI Travel Planner. Tell me where you want to go, your budget, and how many days — I'll handle the rest. ✨",
-    },
-  ]);
+// Generate a stable session ID per browser session
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return "";
+  let id = sessionStorage.getItem("travel_session_id");
+  if (!id) {
+    id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    sessionStorage.setItem("travel_session_id", id);
+  }
+  return id;
+}
+
+// ─────────────────────────────────────────────
+// TripCard — renders a single trip plan
+// ─────────────────────────────────────────────
+function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setShowItinerary, onCopy }:
+  { plan: TripPlan; msgIdx: number; showTrace: number | null; setShowTrace: (v: number | null) => void; showItinerary: number | null; setShowItinerary: (v: number | null) => void; onCopy: (text: string) => void }) {
+
+  // Defensive fallbacks for local LLMs
+  const flights = plan.flights || [];
+  const hotels = plan.hotels || [];
+  const attractions = plan.attractions || [];
+  const workflow = plan.workflow_explanation || { trace: [] };
+
+  return (
+    <div className="mt-3 space-y-3">
+
+      {/* Execution Pipeline */}
+      {workflow.trace && workflow.trace.length > 0 && (
+        <div className="glass-card p-4 border-opal/10">
+          <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">⚙️ Execution Pipeline</h4>
+          <div className="flex flex-wrap gap-2">
+            {workflow.trace.map((step, idx) => (
+              <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-opal/20 bg-sapphire-night/60" title={step.error ?? undefined}>
+                <span className={`w-2 h-2 rounded-full ${stepColor(step.status)}`} />
+                <span className="text-xs font-space text-white">{stepIcon(step.step)} {step.step}</span>
+                {step.latency_ms != null && <span className="text-xs text-text-muted">{step.latency_ms}ms</span>}
+                {step.status === "skipped" && <span className="text-xs text-yellow-400">skip</span>}
+              </div>
+            ))}
+          </div>
+          {plan.rag_context_used && (
+            <p className="text-xs text-opal/70 mt-2 font-space">📚 RAG knowledge base used for enriched context</p>
+          )}
+        </div>
+      )}
+
+      {/* Best Budget Pick */}
+      {plan.recommended?.flight && plan.recommended?.hotel && (
+        <div className="glass-card p-4 border-opal/20 bg-opal/5">
+          <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">⭐ Best Budget Pick</h4>
+          <div className="flex flex-col sm:flex-row gap-3 font-space text-sm text-white">
+            <div className="flex-1">
+              <span className="text-text-muted text-xs">Flight</span>
+              <p>{plan.recommended.flight.airline} <span className="text-opal font-bold">₹{plan.recommended.flight.price?.toLocaleString() || "N/A"}</span> <span className="text-text-muted text-xs">({plan.recommended.flight.duration_hrs}h)</span></p>
+            </div>
+            <div className="flex-1">
+              <span className="text-text-muted text-xs">Hotel</span>
+              <p>{plan.recommended.hotel.name} <span className="text-opal font-bold">₹{plan.recommended.hotel.price_per_night?.toLocaleString() || "N/A"}/night</span></p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flights */}
+      {flights.length > 0 && (
+        <div className="glass-card p-4 border-opal/10">
+          <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">✈️ Flights</h4>
+          <div className="space-y-2">
+            {flights.map((f, j) => (
+              <div key={j} className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1">
+                <div><span>{f.airline || "Unknown Airline"}</span>{f.departure && <span className="text-text-muted text-xs ml-2">{f.departure} · {f.duration_hrs}h</span>}</div>
+                <span className="text-opal font-bold">₹{f.price?.toLocaleString() || "N/A"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hotels */}
+      {hotels.length > 0 && (
+        <div className="glass-card p-4 border-opal/10">
+          <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">🏨 Hotels</h4>
+          <div className="space-y-2">
+            {hotels.map((h, j) => (
+              <div key={j}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1">
+                  <div><span>{h.name || "Unknown Hotel"}</span><span className="text-text-muted text-xs ml-2">⭐ {h.rating || "N/A"}</span>{h.location && <span className="text-text-muted text-xs ml-1">· {h.location.replace("_", " ")}</span>}</div>
+                  <span className="text-opal font-bold">₹{h.price_per_night?.toLocaleString() || "N/A"}/night</span>
+                </div>
+                {h.amenities && h.amenities.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {h.amenities.map((a, k) => <span key={k} className="text-xs bg-opal/10 text-opal px-2 py-0.5 rounded-full">{a}</span>)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Weather + Attractions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {plan.weather?.temperature && (
+          <div className="glass-card p-4 border-opal/10">
+            <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-2">🌤️ Weather {plan.weather.city ? `in ${plan.weather.city}` : ''}</h4>
+            <p className="font-space text-sm text-white">{plan.weather.temperature} — {plan.weather.condition}</p>
+            {plan.weather.humidity != null && <p className="font-space text-xs text-text-muted mt-1">Humidity: {plan.weather.humidity}% · Wind: {plan.weather.wind_kph} kph</p>}
+          </div>
+        )}
+        {attractions.length > 0 && (
+          <div className="glass-card p-4 border-opal/10">
+            <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-2">📍 Top Attractions</h4>
+            <ul className="font-space text-sm text-white space-y-1">
+              {attractions.slice(0, 5).map((a, j) => <li key={j}>• {a}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Budget Summary */}
+      {plan.estimated_budget > 0 && (
+        <div className="glass-card p-4 border-opal/20 bg-opal/5">
+          <div className="flex justify-between items-center mb-3">
+            <span className="font-orbitron text-xs text-opal tracking-[3px] uppercase">💰 Estimated Budget</span>
+            <span className="font-orbitron font-bold text-xl text-white">₹{plan.estimated_budget.toLocaleString()}</span>
+          </div>
+          {plan.budget_advice && (
+            <div className="mt-3 p-3 rounded-lg bg-sapphire-night/60 border border-opal/10">
+              <p className="font-orbitron text-xs text-opal tracking-[2px] uppercase mb-1">💡 Budget Tips</p>
+              <p className="font-space text-xs text-text-muted leading-relaxed">{plan.budget_advice}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Copy Plan */}
+      <button onClick={() => onCopy(
+        `Trip to ${plan.destination} (${plan.duration})\nBudget: ₹${plan.estimated_budget?.toLocaleString()}`
+      )} className="mt-2 text-xs font-space text-opal/60 hover:text-opal transition-colors">
+        📋 Copy plan summary
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Main ChatBot Component
+// ─────────────────────────────────────────────
+export default function ChatBot({ isActive }: { isActive: boolean }) {
+  const [messages, setMessages] = useState<Message[]>([{
+    role: "system",
+    content: "Welcome! I'm your AI Travel Planner.\n\nTry:\n- **\"Plan a 2-day trip to Goa under ₹15000\"**\n- **\"Compare Goa vs Delhi for 3 days\"**\n- **\"What's the weather in Mumbai?\"**",
+  }]);
   const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
-  const chatBodyRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState("AI is orchestrating services...");
+  const [compareMode, setCompareMode] = useState(false);
+  const [destA, setDestA] = useState("");
+  const [destB, setDestB] = useState("");
+  const [compareDays, setCompareDays] = useState(3);
+  const [compareBudget, setCompareBudget] = useState(20000);
+  const [showTrace, setShowTrace] = useState<number | null>(null);
+  const [showItinerary, setShowItinerary] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = useCallback(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTo({ top: chatBodyRef.current.scrollHeight, behavior: "smooth" });
-    }
-  }, []);
+  const sessionId = useCallback(() => getOrCreateSessionId(), [])();
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // Check backend health on mount
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${API_BASE}/health`, { signal: controller.signal })
-      .then((r) => {
-        if (r.ok) setBackendStatus("online");
-        else setBackendStatus("offline");
-      })
-      .catch(() => setBackendStatus("offline"));
-    return () => controller.abort();
-  }, []);
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
-  const handleSend = async (text?: string) => {
-    const query = (text || input).trim();
-    if (!query || isProcessing) return;
+  // WebSocket Integration
+  const sendQuery = async (overrideQuery?: string) => {
+    const query = (overrideQuery || input).trim();
+    if (!query || loading) return;
 
+    setMessages(prev => [...prev, { role: "user", content: query }]);
     setInput("");
-    setIsProcessing(true);
-    setMessages((prev) => [...prev, { type: "user", text: query }, { type: "typing" }]);
+    setLoading(true);
+    setStatusText("Connecting to AI Orchestrator...");
 
     try {
-      const res = await fetch(`${API_BASE}/plan`, {
+      const ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ query, session_id: sessionId }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+
+          if (payload.event === "status") {
+            setStatusText(payload.message);
+          }
+          else if (payload.event === "intent_detected") {
+            const intent = payload.data;
+            setStatusText(`Routing: ${intent.destination || 'Unknown'} for ${intent.num_days || 1} days...`);
+          }
+          else if (payload.event === "plan_complete") {
+            // Defensive Parsing
+            let tp = payload.data.trip_plan || payload.data;
+            if (typeof tp === 'string') {
+              try { tp = JSON.parse(tp); } catch (e) { console.warn("Parse err"); }
+            }
+
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: `Here's your travel plan for **${tp.destination || "your destination"}** (${tp.duration || "N/A"}):`,
+              tripPlan: tp,
+            }]);
+            setLoading(false);
+            ws.close();
+          }
+          else if (payload.event === "error") {
+            throw new Error(payload.message);
+          }
+        } catch (err) {
+          console.error("Payload processing error:", err);
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: "⚠️ The AI generated the plan, but there was an error formatting the data. Check console.",
+          }]);
+          setLoading(false);
+          ws.close();
+        }
+      };
+
+      ws.onerror = () => {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `⚠️ Could not reach the AI backend via WebSocket. Ensure Gateway is running on port 8000.`,
+        }]);
+        setLoading(false);
+      };
+
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `⚠️ Error: ${err instanceof Error ? err.message : String(err)}`,
+      }]);
+      setLoading(false);
+    }
+  };
+
+  // REST Fallback for Comparison (If implemented in Backend)
+  const sendCompare = async () => {
+    if (!destA.trim() || !destB.trim() || loading) return;
+    setMessages(prev => [...prev, { role: "user", content: `Compare ${destA} vs ${destB} for ${compareDays} days under ₹${compareBudget}` }]);
+    setCompareMode(false);
+    setLoading(true);
+    setStatusText("Analyzing comparison via REST...");
+    try {
+      const res = await fetch(`${GATEWAY_URL}/compare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ destination_a: destA, destination_b: destB, num_days: compareDays, budget: compareBudget }),
       });
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
-      const apiData = await res.json();
-      const displayData = transformAPIResponse(apiData);
-      setMessages((prev) => prev.filter((m) => m.type !== "typing").concat({ type: "ai", data: displayData }));
-      setBackendStatus("online");
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      // Show error, then fall back to mock
-      setMessages((prev) =>
-        prev
-          .filter((m) => m.type !== "typing")
-          .concat({ type: "error", text: `Backend unavailable: ${errMsg}` })
-      );
-      setBackendStatus("offline");
-
-      // Delay then show mock
-      await new Promise((r) => setTimeout(r, 800));
-      setMessages((prev) => [...prev, { type: "typing" }]);
-      await new Promise((r) => setTimeout(r, 1000));
-
-      const dest = detectDestination(query);
-      setMessages((prev) =>
-        prev.filter((m) => m.type !== "typing").concat({ type: "ai", data: MOCK_RESPONSES[dest] })
-      );
+      if (!res.ok) throw new Error(`Endpoint /compare not found or failed.`);
+      const data = await res.json();
+      if (data.status !== "success") throw new Error("Unexpected response.");
+      const cmp: ComparisonResult = data.comparison;
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `**Comparison: ${destA} vs ${destB}** (${compareDays} days, ₹${compareBudget.toLocaleString()} budget)\n\n💰 Cheaper: **${cmp.summary.cheaper_destination}**`,
+        comparison: cmp,
+      }]);
+    } catch (err) {
+      // Fallback: Send it through the normal WebSocket Orchestrator if REST fails
+      sendQuery(`Compare ${destA} vs ${destB} for ${compareDays} days under ₹${compareBudget}`);
+    } finally {
+      if (statusText.includes("REST")) setLoading(false);
     }
+  };
 
-    setIsProcessing(false);
+  const clearSession = async () => {
+    if (!sessionId) return;
+    try { await fetch(`${GATEWAY_URL}/session/${sessionId}`, { method: "DELETE" }); } catch (e) { }
+    sessionStorage.removeItem("travel_session_id");
+    setMessages([{ role: "system", content: "Session cleared! Start a new conversation." }]);
   };
 
   return (
-    <section className="chat-section reveal" id="demo">
-      <span className="section-tag">Live Demo</span>
-      <h2 className="section-title font-syne">Try the AI Planner</h2>
-      <p className="section-desc">
-        Type a travel query or click a quick prompt — the AI orchestrates a complete plan in real-time.
-      </p>
+    <div className={`slide-container bg-bg-deep flex flex-col items-center justify-start pt-20 md:pt-24 pb-4 md:pb-8 ${isActive ? "slide-active" : "slide-exit"}`}>
+      {/* Header */}
+      <div className="z-10 text-center mb-3 md:mb-6 px-4">
+        <h2 className="font-orbitron font-bold text-xl sm:text-3xl md:text-5xl text-white mb-2 md:mb-3">
+          <SplitText text="AI TRAVEL PLANNER" delayIndex={0} />
+        </h2>
+        <p className="font-space text-text-muted text-sm max-w-xl mx-auto">
+          Powered by <span className="text-opal">LangChain</span> + <span className="text-opal">Ollama</span> + <span className="text-opal">ChromaDB RAG</span> — dynamic orchestration with memory
+        </p>
+      </div>
 
-      <div className="chat-container">
-        <div className="chat-header">
-          <div className="chat-header-left font-syne">🤖 TravelAI Planner</div>
-          <div className="chat-header-right">
-            <span
-              className="pulse-dot"
-              style={backendStatus === "offline" ? { background: "var(--gold)" } : undefined}
-            />
-            {backendStatus === "online"
-              ? "Backend Connected"
-              : backendStatus === "offline"
-                ? "Demo Mode"
-                : "Checking..."}
-          </div>
-        </div>
-        <div className="chat-body" ref={chatBodyRef}>
-          <div className="chat-messages">
-            {messages.map((msg, i) => {
-              if (msg.type === "typing") {
-                return (
-                  <div key={i} className="message-row">
-                    <div className="msg-avatar ai">✈</div>
-                    <div className="typing-dots">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
+      {/* Chat Container */}
+      <div className="z-10 w-full max-w-3xl flex-1 flex flex-col mx-auto px-2 sm:px-4 overflow-hidden">
+        <div className="glass-card flex-1 flex flex-col overflow-hidden border-opal/20">
+
+          {loading && <ServiceFlow active={loading} />}
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 scrollbar-thin">
+            {messages.map((msg, i) => (
+              <div key={i}>
+                <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-space leading-relaxed ${msg.role === "user" ? "bg-opal/20 text-white border border-opal/30"
+                      : msg.role === "system" ? "bg-sapphire-night text-text-muted border border-border"
+                        : "bg-sapphire-night/80 text-white border border-opal/10"
+                    }`}>
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
-                );
-              }
-              if (msg.type === "user") {
-                return (
-                  <div key={i} className="message-row user">
-                    <div className="msg-avatar user-av">👤</div>
-                    <div className="msg-bubble user-bubble">{msg.text}</div>
-                  </div>
-                );
-              }
-              if (msg.type === "error") {
-                return (
-                  <div key={i} className="message-row">
-                    <div className="msg-avatar ai">✈</div>
-                    <div className="msg-bubble ai-bubble" style={{ borderColor: "rgba(239,68,68,0.3)" }}>
-                      ⚠️ {msg.text}
-                      <br />
-                      <br />
-                      <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                        Falling back to demo mode with sample data...
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
-              // AI response with data
-              if (msg.type === "ai" && msg.data) {
-                const { services, plan, meta } = msg.data;
-                return (
-                  <div key={i} className="message-row">
-                    <div className="msg-avatar ai">✈</div>
-                    <div className="msg-bubble ai-bubble">
-                      <div className="workflow-tags">
-                        {services.map((s) => (
-                          <span key={s} className="wf-tag">
-                            ✓ {s}
-                          </span>
-                        ))}
-                      </div>
-                      {"Here's your AI-generated travel plan! 🎉"}
-                      <div className="trip-card">
-                        <div className="trip-card-title font-syne">{plan.title}</div>
-                        <div className="trip-row">
-                          <span className="trip-label">{plan.flight.label}</span>
-                          <span className="trip-value">{plan.flight.value}</span>
-                          <span className="trip-price">{plan.flight.price}</span>
-                        </div>
-                        <div className="trip-row">
-                          <span className="trip-label">{plan.hotel.label}</span>
-                          <span className="trip-value">{plan.hotel.value}</span>
-                          <span className="trip-price">{plan.hotel.price}</span>
-                        </div>
-                        <div className="trip-row">
-                          <span className="trip-label">{plan.weather.label}</span>
-                          <span className="trip-value">{plan.weather.value}</span>
-                        </div>
-                        <div className="trip-row">
-                          <span className="trip-label">{plan.places.label}</span>
-                          <span className="trip-value">{plan.places.value}</span>
-                        </div>
-                        <div className="trip-row">
-                          <span className="trip-label">{plan.budget.label}</span>
-                          <span className="trip-total">{plan.budget.total}</span>
-                        </div>
-                      </div>
-                      <div className="trip-footer">{meta}</div>
-                    </div>
-                  </div>
-                );
-              }
-              // Plain AI text message (welcome)
-              return (
-                <div key={i} className="message-row">
-                  <div className="msg-avatar ai">✈</div>
-                  <div className="msg-bubble ai-bubble">{msg.text}</div>
                 </div>
-              );
-            })}
+
+                {/* Trip Plan */}
+                {msg.tripPlan && (
+                  <TripCard
+                    plan={msg.tripPlan} msgIdx={i}
+                    showTrace={showTrace} setShowTrace={setShowTrace}
+                    showItinerary={showItinerary} setShowItinerary={setShowItinerary}
+                    onCopy={handleCopy}
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Real-Time WebSocket Loader */}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-sapphire-night border border-opal/20 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {[0, 150, 300].map(delay => (
+                        <div key={delay} className="w-2 h-2 rounded-full bg-opal animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                      ))}
+                    </div>
+                    <span className="font-space text-xs text-text-muted italic">{statusText}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Compare Mode Modal */}
+          {compareMode && (
+            <div className="p-3 border-t border-border bg-sapphire-night/80">
+              <p className="font-orbitron text-xs text-opal tracking-[2px] uppercase mb-2">🔀 Compare Two Destinations</p>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <input value={destA} onChange={e => setDestA(e.target.value)} placeholder="Destination A (e.g. Goa)"
+                  className="bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" />
+                <input value={destB} onChange={e => setDestB(e.target.value)} placeholder="Destination B (e.g. Delhi)"
+                  className="bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" />
+              </div>
+              <div className="flex gap-2 mb-2">
+                <input type="number" value={compareDays} onChange={e => setCompareDays(Number(e.target.value))} min={1} max={14}
+                  className="w-20 bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" placeholder="Days" />
+                <input type="number" value={compareBudget} onChange={e => setCompareBudget(Number(e.target.value))}
+                  className="flex-1 bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" placeholder="Budget (₹)" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={sendCompare} disabled={loading || !destA || !destB}
+                  className="btn-primary px-4 py-2 text-xs disabled:opacity-40">Compare</button>
+                <button onClick={() => setCompareMode(false)}
+                  className="px-4 py-2 text-xs font-space text-text-muted hover:text-white transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Input Bar */}
+          <div className="p-3 sm:p-4 border-t border-border">
+            <div className="flex gap-2 sm:gap-3 mb-2">
+              <input type="text" value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendQuery()}
+                placeholder='e.g. Plan a 2-day trip to Goa under ₹15000...'
+                className="flex-1 bg-bg-deep border border-border rounded-xl px-3 sm:px-4 py-3 text-xs sm:text-sm font-space text-white placeholder-text-muted/60 focus:outline-none focus:border-opal/50 transition-colors min-h-[44px]"
+                disabled={loading} />
+              <button onClick={() => sendQuery()} disabled={loading || !input.trim()}
+                className="btn-primary px-4 sm:px-6 disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm">
+                {loading ? "..." : "Send"}
+              </button>
+            </div>
+            <div className="flex gap-3 justify-between items-center">
+              <div className="flex gap-2">
+                <button onClick={() => setCompareMode(v => !v)}
+                  className={`text-xs font-space px-3 py-1.5 rounded-lg border transition-colors ${compareMode ? "border-opal text-opal" : "border-border text-text-muted hover:border-opal/50 hover:text-opal/70"}`}>
+                  🔀 Compare
+                </button>
+                <button onClick={clearSession}
+                  className="text-xs font-space px-3 py-1.5 rounded-lg border border-border text-text-muted hover:border-red-400/50 hover:text-red-400/70 transition-colors">
+                  🗑️ Clear Session
+                </button>
+              </div>
+              {copied && <span className="text-xs font-space text-green-400">✅ Copied!</span>}
+              <span className="text-xs font-space text-text-muted/60">Session active · memory enabled</span>
+            </div>
           </div>
         </div>
       </div>
-
-      <div className="chat-input-area">
-        <div className="chat-input-row">
-          <input
-            type="text"
-            className="chat-input font-dm"
-            placeholder="e.g. Plan a 2-day trip to Goa under ₹15000"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSend();
-            }}
-          />
-          <button className="chat-send" onClick={() => handleSend()}>
-            Send →
-          </button>
-        </div>
-        <div className="chat-chips">
-          {QUICK_CHIPS.map((chip) => (
-            <button
-              key={chip.query}
-              className="chip"
-              onClick={() => handleSend(chip.query)}
-              disabled={isProcessing}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }

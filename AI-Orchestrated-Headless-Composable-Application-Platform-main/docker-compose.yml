@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   gateway:
-    build: 
+    build:
       context: .
       dockerfile: gateway/Dockerfile
     ports:
@@ -13,9 +13,11 @@ services:
       - WEATHER_SERVICE_URL=http://weather-service:8003
       - PLACES_SERVICE_URL=http://places-service:8004
       - BUDGET_SERVICE_URL=http://budget-service:8005
+      - USER_SERVICE_URL=http://user-service:8006
       - LLM_PROVIDER=local
       - LLM_MODEL=llama2
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-in-production}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -24,6 +26,9 @@ services:
       - weather-service
       - places-service
       - budget-service
+      - user-service
+    volumes:
+      - ./data:/app/data   # ChromaDB + knowledge base
 
   flights-service:
     build:
@@ -62,6 +67,18 @@ services:
     ports:
       - "8005:8005"
 
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user_service/Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-in-production}
+      - USER_DB_PATH=/data/users.db
+    volumes:
+      - user-data:/data
+
   frontend:
     build:
       context: ./frontend
@@ -70,3 +87,8 @@ services:
       - "3000:3000"
     depends_on:
       - gateway
+    environment:
+      - NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
+
+volumes:
+  user-data:

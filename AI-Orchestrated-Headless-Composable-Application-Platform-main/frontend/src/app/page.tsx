@@ -9,7 +9,7 @@ import Slide2 from "@/components/slides/Slide2";
 import Slide3 from "@/components/slides/Slide3";
 import Slide4 from "@/components/slides/Slide4";
 import Slide5 from "@/components/slides/Slide5";
-import ChatBot from "@/components/slides/ChatBot";
+import ChatBot from "@/components/slides/ChatBot"; // Make sure your ChatDemo is exported as ChatBot here if needed!
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
