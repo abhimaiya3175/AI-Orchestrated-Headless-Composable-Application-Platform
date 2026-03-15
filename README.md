@@ -1,6 +1,10 @@
 # AI-Orchestrated Smart Travel Planner
 
-## Implementation Plan
+## Recent Updates (March 2026)
+* **AI Architecture — RAG**: Integrated **ChromaDB** for Retrieval-Augmented Generation.
+* **AI Architecture — Memory**: Added **Conversation Memory** for multi-turn sessions.
+* **Microservices — User & Auth**: New **User Service** (Port 8006) for JWT auth and saved plans.
+* **Frontend**: Modern Next.js 14 UI with real-time **WebSockets** and **Redis caching**.
 
 ---
 
@@ -13,365 +17,99 @@ Instead of manually searching across multiple apps (flights, hotels, weather, at
 > *"Plan a 2-day trip to Goa under ₹15000 with beach activities."*
 
 The system then:
-
 1. Understands user intent using an LLM.
 2. Determines required services.
-3. Calls the relevant microservices.
-4. Aggregates results.
-5. Returns a unified travel plan.
-
-This demonstrates **dynamic AI service orchestration**.
+3. Calls the relevant microservices concurrently.
+4. Aggregates results and injects local knowledge (RAG).
+5. Returns a unified travel plan with budget advice and an itinerary.
 
 ---
 
 # 2. System Architecture
 
 ```
-Frontend (Chat UI)
-        │
-        ▼
-FastAPI Gateway
-        │
-        ▼
-AI Orchestrator (LLM + LangChain)
-        │
- ┌──────┼───────┬────────┬────────┐
- ▼      ▼       ▼        ▼
-Flights Hotels Weather Places
-Service Service Service Service
-        │
-        ▼
-Budget Calculator
-        │
-        ▼
-Final Travel Plan Response
+    Frontend (Chat UI)
+            │
+            ▼
+    FastAPI Gateway <───> Redis Cache
+            │
+            ▼
+    AI Orchestrator (LLM + LangChain) <───> ChromaDB (RAG)
+            │
+     ┌──────┴───────┬────────┬────────┬────────┬────────┐
+     ▼              ▼        ▼        ▼        ▼        ▼
+Flights Service  Hotels   Weather  Places   Budget   User & Auth
+                Service  Service  Service  Service   Service
+     │              │        │        │        │        │
+     └──────────────┴────────┴────┬───┴────────┴────────┘
+                                  ▼
+                      Final Travel Plan Response
 ```
 
 ---
 
-# 3. Technology Stack
+# 3. Microservices
 
-## Frontend
-
-Simple chat interface for user queries.
-
-Technologies:
-
-* HTML
-* Tailwind CSS
-* JavaScript
-
-Optional upgrade:
-
-* Next.js
-* React
+| Service         | Endpoint   | Purpose                         | Port |
+| --------------- | ---------- | ------------------------------- | ---- |
+| API Gateway     | `/plans`   | Main entry point & WebSockets   | 8000 |
+| Flight Service  | `/flights` | Return flight options           | 8001 |
+| Hotel Service   | `/hotels`  | Return hotel options            | 8002 |
+| Weather Service | `/weather` | Get weather information         | 8003 |
+| Places Service  | `/places`  | Return tourist attractions      | 8004 |
+| Budget Service  | `/budget`  | Estimate trip budget            | 8005 |
+| User Service    | `/auth`    | JWT Auth & Saved Plans          | 8006 |
 
 ---
 
-## Backend API Gateway
-
-Handles incoming requests and forwards them to the AI orchestrator.
-
-Technology:
-
-* **FastAPI**
-
-Responsibilities:
-
-* Accept user requests
-* Forward request to orchestrator
-* Return final response
-
----
-
-## AI Orchestration Layer
-
-Responsible for interpreting the user request and composing the workflow.
-
-Technologies:
-
-* **LangChain**
-* **OpenAI API / Llama / Local LLM**
-* Python
-
-Responsibilities:
-
-* Intent detection
-* Service selection
-* Workflow composition
-* Aggregating results
-
----
-
-## Microservices
-
-Each capability runs as an independent API.
-
-Each service will be implemented using **FastAPI**.
-
-Minimal services:
-
-| Service         | Endpoint   | Purpose                    |
-| --------------- | ---------- | -------------------------- |
-| Flight Service  | `/flights` | Return flight options      |
-| Hotel Service   | `/hotels`  | Return hotel options       |
-| Weather Service | `/weather` | Get weather information    |
-| Places Service  | `/places`  | Return tourist attractions |
-| Budget Service  | `/budget`  | Estimate trip budget       |
-
----
-
-# 4. Microservice APIs
-
-## Flight Service
-
-Example endpoint:
-
-```
-GET /flights?source=hyd&destination=goa
-```
-
-Response:
-
-```json
-{
-  "flights": [
-    {"airline": "IndiGo", "price": 4500},
-    {"airline": "Air India", "price": 4800}
-  ]
-}
-```
-
----
-
-## Hotel Service
-
-```
-GET /hotels?city=goa
-```
-
-Example response:
-
-```json
-{
-  "hotels": [
-    {"name": "Beach Resort", "price_per_night": 3500},
-    {"name": "Sea View Hotel", "price_per_night": 2800}
-  ]
-}
-```
-
----
-
-## Weather Service
-
-Uses real API:
-
-* **OpenWeather API**
-
-Endpoint:
-
-```
-GET /weather?city=goa
-```
-
-Example response:
-
-```json
-{
-  "temperature": "30°C",
-  "condition": "Sunny"
-}
-```
-
----
-
-## Places Service
-
-```
-GET /places?city=goa
-```
-
-Example response:
-
-```json
-{
-  "places": [
-    "Baga Beach",
-    "Calangute Beach",
-    "Fort Aguada"
-  ]
-}
-```
-
----
-
-## Budget Service
-
-Calculates estimated trip cost.
-
-Example logic:
-
-```
-budget = flight_cost + hotel_cost + activities
-```
-
----
-
-# 5. AI Orchestration Logic
-
-Workflow process:
-
-```
-User Query
-     ↓
-LLM extracts intent
-     ↓
-Determine required services
-     ↓
-Call services via APIs
-     ↓
-Aggregate results
-     ↓
-Generate travel plan
-```
-
----
-
-# 6. Example Workflow
-
-User input:
-
-```
-Plan a 2-day trip to Goa
-```
-
-AI selects services:
-
-```
-Flight Service
-Hotel Service
-Weather Service
-Places Service
-Budget Service
-```
-
-Execution flow:
-
-```
-1. Fetch flights
-2. Fetch hotels
-3. Fetch weather
-4. Fetch attractions
-5. Calculate budget
-6. Combine results
-```
-
----
-
-# 7. Example Output
-
-```
-Trip Plan: Goa (2 Days)
-
-Flights
-HYD → GOA ₹4500
-
-Hotel
-Beach Resort ₹3500/night
-
-Weather
-Sunny 30°C
-
-Places to Visit
-- Baga Beach
-- Calangute Beach
-- Fort Aguada
-
-Estimated Budget
-₹11,500
-```
-
----
-
-# 8. Project Folder Structure
+# 4. Project Folder Structure
 
 ```
 ai-platform/
-
-frontend/
-   index.html
-   script.js
-
-gateway/
-   main.py
-
-orchestrator/
-   planner.py
-
-services/
-   flight_service.py
-   hotel_service.py
-   weather_service.py
-   places_service.py
-
-data/
-   flights.json
-   hotels.json
+├── frontend/                # Next.js 14 + Tailwind CSS
+├── gateway/                 # FastAPI Gateway + WebSockets
+├── orchestrator/            # LangChain + RAG Engine
+├── services/
+│   ├── flight_service/      # Microservice 1
+│   ├── hotel_service/       # Microservice 2
+│   ├── weather_service/     # Microservice 3
+│   ├── places_service/      # Microservice 4
+│   ├── budget_service/      # Microservice 5
+│   └── user_service/        # Microservice 6 (Auth/History)
+├── data/
+│   ├── knowledge/           # Markdown files for RAG
+│   └── chroma_db/           # Persistent Vector DB
+└── start_backend.py         # Launch script for all 7 services
 ```
 
 ---
 
-# 9. 15-Day Execution Plan
+# 5. Quick Start
 
-| Day | Task                            |
-| --- | ------------------------------- |
-| 1   | Project design                  |
-| 2–3 | Build microservices             |
-| 4   | Implement FastAPI gateway       |
-| 5–6 | Integrate LangChain             |
-| 7–8 | Implement orchestration logic   |
-| 9   | Connect services                |
-| 10  | Build frontend chat UI          |
-| 11  | Testing                         |
-| 12  | Add logs + workflow explanation |
-| 13  | Optimize orchestration          |
-| 14  | Prepare demo                    |
-| 15  | Documentation                   |
-
----
-
-# 10. Explainable AI Workflow (Optional Feature)
-
-To make the system more research-grade, show how the AI decided the workflow.
-
-Example output:
-
+### Step 1: Clone & Setup
+```bash
+git clone https://github.com/abhimaiya3175/AI-Orchestrated-Headless-Composable-Application-Platform.git
+cd AI-Orchestrated-Headless-Composable-Application-Platform
+python -m venv venv
+source venv/bin/activate  # venv\Scripts\activate on Windows
+pip install -r AI-Orchestrated-Headless-Composable-Application-Platform-main/requirements.txt
 ```
-AI Workflow Explanation
 
-Detected Intent:
-Travel Planning
+### Step 2: Run All Services
+```bash
+cd AI-Orchestrated-Headless-Composable-Application-Platform-main
+python start_backend.py
+```
 
-Selected Services:
-1. Flight Service
-2. Hotel Service
-3. Weather Service
-4. Places Service
-
-Reason:
-These services are required to generate a complete travel plan.
+### Step 3: Start Frontend
+```bash
+cd ../frontend
+npm install
+npm run dev
 ```
 
 ---
 
-# 11. Expected Outcomes
+# 6. Documentation
 
-The prototype demonstrates:
-
-* AI-driven workflow orchestration
-* Headless architecture
-* Composable microservices
-* Intelligent service selection
-
-This architecture closely resembles **modern AI agent systems** used in industry.
+For detailed implementation details, API specifications, and troubleshooting, please refer to the [Main README](AI-Orchestrated-Headless-Composable-Application-Platform-main/README.md).

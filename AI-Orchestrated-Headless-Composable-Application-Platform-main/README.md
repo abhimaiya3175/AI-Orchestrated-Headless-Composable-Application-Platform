@@ -3,11 +3,12 @@
 ## Implementation Plan
 
 ## Recent Updates (March 2026)
-* **Frontend — Responsive Design**: Fully responsive across mobile, tablet, and desktop. Added mobile hamburger menu with animated toggle and touch-friendly nav links.
-* **Frontend — Transitions**: Replaced PPT-style overlay with smooth **Fade + Slide** CSS animations between slides.
-* **Frontend — Navigation**: Navbar now includes all **6 slide links** (Home, Overview, Architecture, AI Core, Modules, AI Planner) with correct active highlighting.
-* **Frontend — UX**: Removed slide page counter, [GET STARTED] button now links directly to AI Planner (slide 6), native cursor restored on touch devices.
-* **Dependencies**: Regenerated `requirements.txt` via `pip freeze` for reproducible builds.
+* **AI Architecture — RAG**: Integrated **ChromaDB** for Retrieval-Augmented Generation, injecting destination-specific knowledge into LLM prompts.
+* **AI Architecture — Memory**: Added **Conversation Memory** (per-session history) so the planner understands follow-up questions.
+* **Microservices — User & Auth**: New **User Service** (Port 8006) for JWT authentication, user profiles, and saving/sharing travel plans.
+* **Frontend — Advanced Features**: Real-time **WebSockets** for streaming plan generation and **Redis caching** for extreme performance.
+* **Orchestration**: Added **Smart Budget Advisor** and **Trip Comparison** capabilities.
+* **Dependencies**: Regenerated `requirements.txt` via `pip freeze` and updated setup guides.
 
 ---
 
@@ -34,24 +35,22 @@ This demonstrates **dynamic AI service orchestration**.
 # 2. System Architecture
 
 ```
-Frontend (Chat UI)
-        │
-        ▼
-FastAPI Gateway
-        │
-        ▼
-AI Orchestrator (LLM + LangChain)
-        │
- ┌──────┼───────┬────────┬────────┐
- ▼      ▼       ▼        ▼
-Flights Hotels Weather Places
-Service Service Service Service
-        │
-        ▼
-Budget Calculator
-        │
-        ▼
-Final Travel Plan Response
+    Frontend (Chat UI)
+            │
+            ▼
+    FastAPI Gateway <───> Redis Cache
+            │
+            ▼
+    AI Orchestrator (LLM + LangChain) <───> ChromaDB (RAG)
+            │
+     ┌──────┴───────┬────────┬────────┬────────┬────────┐
+     ▼              ▼        ▼        ▼        ▼        ▼
+Flights Service  Hotels   Weather  Places   Budget   User & Auth
+                Service  Service  Service  Service   Service
+     │              │        │        │        │        │
+     └──────────────┴────────┴────┬───┴────────┴────────┘
+                                  ▼
+                      Final Travel Plan Response
 ```
 
 ---
@@ -72,9 +71,10 @@ Technologies:
 Features:
 
 * **6 slides** with parallax, skeleton loaders, animated counters, and fade+slide transitions
-* **AI Chatbot slide** (Slide 6 — AI Planner) — sends natural language queries to the backend
+* **AI Chatbot slide** (Slide 6 — AI Planner) — sends natural language queries to the backend via **WebSockets**
 * Fully responsive design — mobile hamburger menu + vertical scroll, desktop keyboard/wheel navigation
 * Custom cursor (hidden on touch devices), glassmorphism cards, and spotlight hover effects
+* **User Dashboard**: login/register and history view (integrated with User Service)
 
 ---
 
@@ -108,9 +108,12 @@ Technologies:
 Responsibilities:
 
 * Intent detection
-* Service selection
-* Workflow composition
-* Aggregating results
+* **RAG Context Injection**: Fetches local knowledge from ChromaDB
+* **Conversation Memory**: Tracks previous turns in the session
+* **Service Selection & Workflow Composition**
+* **Parallel Async Execution**: Calls microservices concurrently
+* **Itinerary Generation & Budget Advice**
+* **Trip Comparison**: Can compare two destinations side-by-side
 
 ---
 
@@ -122,13 +125,14 @@ Each service will be implemented using **FastAPI**.
 
 Minimal services:
 
-| Service         | Endpoint   | Purpose                    |
-| --------------- | ---------- | -------------------------- |
-| Flight Service  | `/flights` | Return flight options      |
-| Hotel Service   | `/hotels`  | Return hotel options       |
-| Weather Service | `/weather` | Get weather information    |
-| Places Service  | `/places`  | Return tourist attractions |
-| Budget Service  | `/budget`  | Estimate trip budget       |
+| Service         | Endpoint   | Purpose                         | Port |
+| --------------- | ---------- | ------------------------------- | ---- |
+| Flight Service  | `/flights` | Return flight options           | 8001 |
+| Hotel Service   | `/hotels`  | Return hotel options            | 8002 |
+| Weather Service | `/weather` | Get weather information         | 8003 |
+| Places Service  | `/places`  | Return tourist attractions      | 8004 |
+| Budget Service  | `/budget`  | Estimate trip budget            | 8005 |
+| User Service    | `/auth`    | JWT Auth & Saved Plans          | 8006 |
 
 ---
 
@@ -339,6 +343,13 @@ gateway/
 
 orchestrator/
    planner.py                # LangChain + ChatOllama AI orchestrator
+   rag.py                    # RAG Engine (ChromaDB + Sentence Transformers)
+
+data/
+   knowledge/                # Markdown files for RAG (e.g., goa.md, mumbai.md)
+   chroma_db/                # Persistent vector database
+   flights.json              # Mock flight data
+   hotels.json               # Mock hotel data
 
 services/
    flight_service/main.py    # Flight search API (port 8001)
@@ -346,8 +357,9 @@ services/
    weather_service/main.py   # Weather API (port 8003)
    places_service/main.py    # Tourist attractions API (port 8004)
    budget_service/main.py    # Budget calculator API (port 8005)
+   user_service/main.py      # User & Auth API (port 8006)
 
-start_backend.py             # Launches all 6 backend services
+start_backend.py             # Launches all 7 backend services (Gateway + 6 microservices)
 requirements.txt             # Frozen Python dependencies (pip freeze)
 docker-compose.yml
 .env.example
@@ -391,6 +403,7 @@ Selected Services:
 2. Hotel Service
 3. Weather Service
 4. Places Service
+5. User Service (Auth check)
 
 Reason:
 These services are required to generate a complete travel plan.
@@ -440,8 +453,8 @@ This architecture closely resembles **modern AI agent systems** used in industry
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/ai-orchestrated-platform.git
-cd ai-orchestrated-platform
+git clone https://github.com/abhimaiya3175/AI-Orchestrated-Headless-Composable-Application-Platform.git
+cd AI-Orchestrated-Headless-Composable-Application-Platform
 ```
 
 ### Step 2: Create Python Virtual Environment
@@ -497,6 +510,13 @@ HOTELS_SERVICE_URL=http://localhost:8002
 WEATHER_SERVICE_URL=http://localhost:8003
 PLACES_SERVICE_URL=http://localhost:8004
 BUDGET_SERVICE_URL=http://localhost:8005
+USER_SERVICE_URL=http://localhost:8006
+
+# Auth & Cache
+JWT_SECRET_KEY=ai-travel-planner-secret-change-in-prod
+JWT_TTL_HOURS=24
+REDIS_URL=redis://localhost:6379
+
 LOG_LEVEL=INFO
 ```
 
@@ -588,7 +608,7 @@ The easiest way to start all backend services at once:
 ```bash
 # From the project root directory
 python start_backend.py
-# This starts all 5 microservices + gateway on ports 8000-8005
+# This starts all 6 microservices + gateway on ports 8000-8006
 ```
 
 ### Start Individual Microservices (Alternative)
@@ -616,7 +636,11 @@ uvicorn main:app --port 8004
 cd services/budget_service
 uvicorn main:app --port 8005
 
-# Terminal 6: API Gateway
+# Terminal 6: User Service
+cd services/user_service
+uvicorn main:app --port 8006
+
+# Terminal 7: API Gateway
 cd gateway
 uvicorn main:app --port 8000
 ```
@@ -637,7 +661,7 @@ npm run dev
 3. Start the frontend: `cd frontend && npm run dev`
 4. Navigate to **Slide 6 (AI Planner)** — click **[AI PLANNER]** in the navbar, or click **[GET STARTED]** on the hero
 5. Type a travel query like: *"Plan a 2-day trip to Goa under ₹15000"*
-6. The AI orchestrator will call all 5 services and return a complete travel plan
+6. The AI orchestrator will call all relevant services and return a complete travel plan.
 
 ### Docker Deployment
 
@@ -650,24 +674,21 @@ docker-compose up -d
 Expected services:
 - Gateway: `http://localhost:8000`
 - Frontend: `http://localhost:3000`
-- All microservices: `http://localhost:8001-8005`
+- All microservices: `http://localhost:8001-8006`
 
 ---
 
-# 16. API Documentation
-
 ### Gateway Endpoints
 
-#### POST /plan
+#### POST /plans/generate
 
-**Description**: Generate a complete travel plan based on user query
+**Description**: Generate a complete travel plan based on user query (with Redis caching).
 
 **Request**:
 ```json
 {
-  "query": "Plan a 2-day trip to Goa under ₹15000 with beach activities",
-  "source": "hyd",
-  "num_days": 2,
+  "query": "Plan a 2-day trip to Goa under ₹15000",
+  "session_id": "optional-uuid",
   "budget": 15000
 }
 ```
@@ -681,47 +702,35 @@ Expected services:
     "duration": "2 days",
     "flights": [],
     "hotels": [],
-    "weather": {},
-    "attractions": [],
-    "estimated_budget": 11500,
-    "workflow_explanation": {}
+    "itinerary": "Day 1...",
+    "budget_advice": "Tip: ..."
   }
 }
 ```
 
-#### GET /health
+#### WS /ws/plan
 
-**Description**: Check service health status
+**Description**: Real-time WebSocket for streaming intent detection and plan generation.
 
-**Response**:
-```json
-{
-  "status": "healthy",
-  "services": {
-    "flights": "active",
-    "hotels": "active",
-    "weather": "active",
-    "places": "active",
-    "budget": "active"
-  }
-}
-```
+#### GET /status
 
-#### GET /workflow-trace
+**Description**: System health dashboard (Gateway + All Microservices).
 
-**Description**: Get the last executed workflow trace
+---
 
-**Response**:
-```json
-{
-  "workflow_id": "uuid-123",
-  "steps": [
-    {"service": "flights", "status": "completed", "duration_ms": 245},
-    {"service": "hotels", "status": "completed", "duration_ms": 312}
-  ],
-  "total_duration_ms": 852
-}
-```
+### User Service Endpoints
+
+#### POST /auth/register
+Register a new user with preferences.
+
+#### POST /auth/login
+Get JWT access token.
+
+#### POST /plans/save
+Save a generated plan to user profile.
+
+#### GET /plans/saved
+Retrieve all saved plans.
 
 ---
 
