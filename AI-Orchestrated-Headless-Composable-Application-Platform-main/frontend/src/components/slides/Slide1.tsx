@@ -7,13 +7,13 @@ import { SplitText } from "@/components/Animations";
 // Infinite Marquee strip for bottom of slide 1
 export function Marquee() {
     return (
-        <div className="h-14 md:h-20 w-full border-t border-b border-border bg-bg-deep overflow-hidden flex flex-col justify-center">
+        <div className="h-14 md:h-20 w-full border-t border-b border-border bg-deep overflow-hidden flex flex-col justify-center">
             <div className="w-[100vw] overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)", WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)" }}>
                 <div className="flex w-max marquee-left hover:[animation-play-state:paused] font-orbitron text-[9px] md:text-[11px] tracking-[3px] md:tracking-[4px] text-text-muted uppercase py-2">
                     {Array(4).fill("AI ORCHESTRATION • HEADLESS CMS • COMPOSABLE APIS • EDGE DEPLOY • REAL-TIME SYNC • MODULAR ARCHITECTURE • ZERO LOCK-IN • AUTONOMOUS AGENTS • SCHEMA-FIRST • EVENT DRIVEN • ").map((text, i) => (
                         <span key={i} className="px-4">
                             {text.split('•').map((item: string, j: number) => (
-                                <span key={j}>{item}<span className="text-opal mx-4">•</span></span>
+                                <span key={j}>{item}<span className="text-accent mx-4">•</span></span>
                             ))}
                         </span>
                     ))}
@@ -70,16 +70,11 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
             )}
 
             {/* Hero Section */}
-            <section className="relative w-full h-[100vh] flex items-center justify-center overflow-hidden">
+            <section className="relative w-full h-[100vh] flex items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,_#FFFFFF,_#F2E8CF)]">
                 {/* Parallax Layers */}
                 <div
-                    className="absolute inset-0 bg-cover bg-center will-change-transform z-0"
-                    style={{
-                        backgroundImage: "url('/images/hero-bg.jpg')",
-                        transform: isMobile ? "none" : `translateY(${scrollY * 0.3}px)`
-                    }}
+                    className="absolute inset-0 z-0"
                 />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(17,24,32,0.4)_0%,rgba(17,24,32,0.85)_100%)] z-[1]" />
 
                 {/* Floating Particles/Nodes */}
                 {!isMobile && (
@@ -99,7 +94,7 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                                         cx={`${cx}%`}
                                         cy={`${cy}%`}
                                         r="3"
-                                        fill="#A7DADC"
+                                        fill="#C2410C"
                                     />
                                 );
                             })}
@@ -111,7 +106,7 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                     className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 max-w-5xl mx-auto mt-16 will-change-transform"
                     style={{ transform: isMobile ? "none" : `translateY(${scrollY * 1.0}px)` }}
                 >
-                    <h1 className="font-orbitron font-black text-2xl sm:text-4xl md:text-7xl text-white leading-[1.1] mb-4 md:mb-6">
+                    <h1 className="font-orbitron font-black text-2xl sm:text-4xl md:text-7xl text-text-primary leading-[1.1] mb-4 md:mb-6">
                         <SplitText text="ORCHESTRATE. COMPOSE. DEPLOY." />
                     </h1>
                     <h2 className="font-space text-sm sm:text-base md:text-lg text-text-muted max-w-2xl mb-8 md:mb-12 px-2">
@@ -126,23 +121,18 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                             [GET STARTED]
                         </button>
                         <button className="btn-secondary group flex items-center justify-center gap-2">
-                            [WATCH DEMO] <span className="text-[12px] opacity-70 group-hover:text-opal">▶</span>
+                            [WATCH DEMO] <span className="text-[12px] opacity-70 group-hover:text-accent">▶</span>
                         </button>
                     </div>
 
-                    <div className="font-orbitron text-[8px] sm:text-[10px] tracking-[2px] sm:tracking-[3px] text-text-muted/60 uppercase flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                        <span>200+ Modules</span> <span className="text-opal">•</span>
-                        <span>99.99% Uptime</span> <span className="text-opal">•</span>
-                        <span>SOC2 Certified</span> <span className="text-opal">•</span>
-                        <span>10M+ API/sec</span>
-                    </div>
+
                 </div>
             </section>
 
             <Marquee />
 
             {/* Features Overview */}
-            <section className="w-full py-12 md:py-24 px-4 sm:px-6 md:px-12 lg:px-24 bg-sapphire-night relative z-10">
+            <section className="w-full py-12 md:py-24 px-4 sm:px-6 md:px-12 lg:px-24 bg-primary relative z-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 max-w-7xl mx-auto">
                     {[
                         { title: "AI Orchestration", icon: "🧠" },
@@ -163,10 +153,10 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                                 }
                             }}
                         >
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-opal-dim flex items-center justify-center text-xl md:text-2xl mb-4 md:mb-6 text-opal">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-accent/10 flex items-center justify-center text-xl md:text-2xl mb-4 md:mb-6 text-accent">
                                 {feature.icon}
                             </div>
-                            <h3 className="font-orbitron font-bold text-base md:text-lg mb-2 md:mb-3 tracking-[1px]">{feature.title}</h3>
+                            <h3 className="font-orbitron font-bold text-base md:text-lg mb-2 md:mb-3 tracking-[1px] text-text-primary">{feature.title}</h3>
                             <p className="font-space text-xs md:text-sm text-text-muted leading-relaxed">
                                 Seamlessly intelligent core empowering absolute control and flexibility over the application stack without constraints.
                             </p>
@@ -176,7 +166,7 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
             </section>
 
             {/* Stats Bar */}
-            <section className="w-full bg-bg-deep border-t border-border py-10 md:py-16 px-4 sm:px-6 relative z-10">
+            <section className="w-full bg-deep border-t border-border py-10 md:py-16 px-4 sm:px-6 relative z-10">
                 <div className="max-w-7xl mx-auto grid grid-cols-2 md:flex md:flex-row justify-around gap-8 md:gap-12 text-center">
                     {[
                         { val: "10M+", label: "API Calls/sec" },
@@ -185,7 +175,7 @@ export default function Slide1({ isActive, nextSlide, isMobile }: { isActive: bo
                         { val: "500+", label: "Enterprise Clients" },
                     ].map((stat, i) => (
                         <div key={i}>
-                            <div className="font-orbitron font-bold text-2xl sm:text-3xl md:text-4xl mb-2 md:mb-4 text-white hover:text-opal transition-colors cursor-pointer">{stat.val}</div>
+                            <div className="font-orbitron font-bold text-2xl sm:text-3xl md:text-4xl mb-2 md:mb-4 text-text-primary hover:text-accent transition-colors cursor-pointer">{stat.val}</div>
                             <div className="font-space text-[10px] md:text-xs text-text-muted uppercase tracking-[1px] md:tracking-[2px]">{stat.label}</div>
                         </div>
                     ))}

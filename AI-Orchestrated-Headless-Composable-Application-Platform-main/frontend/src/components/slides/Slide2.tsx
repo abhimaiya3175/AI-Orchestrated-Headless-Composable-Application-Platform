@@ -23,16 +23,16 @@ export default function Slide2({ isActive }: { isActive: boolean }) {
     }, [isActive]);
 
     return (
-        <div className={`slide-container bg-bg-deep ${isActive ? 'slide-active' : 'slide-exit'}`}>
+        <div className={`slide-container bg-deep ${isActive ? 'slide-active' : 'slide-exit'}`}>
             <div className="slide-content flex flex-col md:flex-row h-full w-full">
                 {/* Left Panel */}
                 <div className="w-full md:w-1/2 h-[35vh] md:h-full overflow-hidden relative">
-                    <div className="absolute inset-0 bg-sapphire-night/40 z-[1]" />
+                    <div className="absolute inset-0 bg-primary/40 z-[1]" />
                     <Image
                         src="/images/platform-overview.jpg"
                         alt="Platform Overview"
                         fill
-                        className={`object-cover transition-opacity duration-500 delay-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+                        className={`object-cover transition-opacity duration-500 delay-300 sepia-[.5] hue-rotate-[-30deg] contrast-125 ${isActive ? 'opacity-90 scale-100' : 'opacity-0 scale-105'}`}
                         loading="lazy"
                     />
                 </div>
@@ -42,7 +42,7 @@ export default function Slide2({ isActive }: { isActive: boolean }) {
 
                     {/* Skeleton Overlay */}
                     <div
-                        className={`absolute inset-0 bg-bg-deep z-[50] flex flex-col justify-center p-5 sm:p-8 md:p-16 lg:p-24 transition-opacity duration-500 pointer-events-none ${showSkeleton ? 'opacity-100' : 'opacity-0'}`}
+                        className={`absolute inset-0 bg-deep z-[50] flex flex-col justify-center p-5 sm:p-8 md:p-16 lg:p-24 transition-opacity duration-500 pointer-events-none ${showSkeleton ? 'opacity-100' : 'opacity-0'}`}
                     >
                         <div className="skeleton w-3/4 h-10 mb-8" />
                         <div className="skeleton w-full h-4 mb-3" />
@@ -70,10 +70,10 @@ export default function Slide2({ isActive }: { isActive: boolean }) {
                             { icon: "🚀", title: "Universal deployment target" },
                         ].map((feature, i) => (
                             <div key={i} className="glass-card spotlight-hover p-3 sm:p-5 flex items-center gap-3 sm:gap-4 cursor-pointer group">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-opal/10 text-opal flex items-center justify-center shrink-0 text-sm sm:text-base">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-accent/10 text-accent flex items-center justify-center shrink-0 text-sm sm:text-base">
                                     {feature.icon}
                                 </div>
-                                <div className="font-orbitron font-semibold text-xs sm:text-sm md:text-base text-text-primary tracking-[1px] group-hover:text-opal transition-colors">
+                                <div className="font-orbitron font-semibold text-xs sm:text-sm md:text-base text-text-primary tracking-[1px] group-hover:text-accent transition-colors">
                                     {feature.title}
                                 </div>
                             </div>

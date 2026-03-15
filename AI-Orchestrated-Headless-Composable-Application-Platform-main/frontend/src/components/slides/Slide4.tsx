@@ -30,7 +30,7 @@ function NeuralNetworkBG() {
     }, []);
 
     return (
-        <div className="absolute inset-0 z-0 overflow-hidden bg-bg-deep opacity-60">
+        <div className="absolute inset-0 z-0 overflow-hidden bg-deep opacity-60">
             <svg className="w-full h-full">
                 <defs>
                     <filter id="glow">
@@ -43,7 +43,7 @@ function NeuralNetworkBG() {
                 </defs>
 
                 {lines.map((l) => (
-                    <line key={`line-${l.id}`} x1={`${l.x1}%`} y1={`${l.y1}%`} x2={`${l.x2}%`} y2={`${l.y2}%`} stroke="rgba(167,218,220,0.08)" strokeWidth="1" />
+                    <line key={`line-${l.id}`} x1={`${l.x1}%`} y1={`${l.y1}%`} x2={`${l.x2}%`} y2={`${l.y2}%`} stroke="rgba(194,65,12,0.08)" strokeWidth="1" />
                 ))}
 
                 {nodes.map((n) => (
@@ -52,7 +52,7 @@ function NeuralNetworkBG() {
                         cx={`${n.x}%`}
                         cy={`${n.y}%`}
                         r="4"
-                        fill="#A7DADC"
+                        fill="#C2410C"
                         opacity="0.25"
                         filter="url(#glow)"
                         className="animate-[pulse_4s_ease-in-out_infinite]"
@@ -100,7 +100,7 @@ function AnimatedCounter({ value, label, trigger }: { value: number, label: stri
 
     return (
         <div className="flex flex-col">
-            <span className="font-orbitron font-bold text-3xl md:text-4xl text-white mb-1 tracking-[1px]">{finalDisplay}</span>
+            <span className="font-orbitron font-bold text-3xl md:text-4xl text-text-primary mb-1 tracking-[1px]">{finalDisplay}</span>
             <span className="font-space text-[11px] md:text-xs text-text-muted uppercase tracking-[2px]">{label}</span>
         </div>
     );
@@ -108,15 +108,15 @@ function AnimatedCounter({ value, label, trigger }: { value: number, label: stri
 
 export default function Slide4({ isActive }: { isActive: boolean }) {
     return (
-        <div className={`slide-container bg-bg-deep flex items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
+        <div className={`slide-container bg-deep flex items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
             <NeuralNetworkBG />
 
             <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-4 sm:px-8 z-10 gap-8 md:gap-16">
 
                 <div className="flex-1 flex flex-col justify-center max-w-xl px-2">
-                    <div className="font-orbitron text-[9px] sm:text-[10px] text-opal tracking-[4px] sm:tracking-[6px] uppercase mb-4 md:mb-6">CORE ENGINE</div>
+                    <div className="font-orbitron text-[9px] sm:text-[10px] text-accent tracking-[4px] sm:tracking-[6px] uppercase mb-4 md:mb-6">CORE ENGINE</div>
 
-                    <h2 className="font-orbitron font-bold text-2xl sm:text-3xl md:text-5xl text-white leading-tight mb-4 md:mb-8">
+                    <h2 className="font-orbitron font-bold text-2xl sm:text-3xl md:text-5xl text-text-primary leading-tight mb-4 md:mb-8">
                         <SplitText text="AI AT THE CORE" delayIndex={0} />
                         <br />
                         <SplitText text="OF EVERYTHING." delayIndex={4} />
@@ -134,12 +134,12 @@ export default function Slide4({ isActive }: { isActive: boolean }) {
                 </div>
 
                 <div className="flex-1 w-full max-w-xs sm:max-w-md relative group mt-8 md:mt-0 min-h-[200px] sm:min-h-[300px] md:min-h-[400px] aspect-square">
-                    <div className="absolute -inset-1 bg-gradient-to-tr from-opal/50 to-transparent rounded-[24px] blur-xl opacity-30 group-hover:opacity-60 transition-opacity duration-700" />
+                    <div className="absolute -inset-1 bg-gradient-to-tr from-accent/50 to-transparent rounded-[24px] blur-xl opacity-30 group-hover:opacity-60 transition-opacity duration-700" />
                     <Image
                         src="/images/ai-orchestration.jpg"
                         alt="AI Orchestration Visualization"
                         fill
-                        className="object-cover rounded-[20px] border border-opal/20 shadow-[0_0_40px_rgba(167,218,220,0.1)]"
+                        className="object-cover rounded-[20px] border border-accent/20 shadow-[0_0_40px_rgba(194,65,12,0.1)] sepia-[.5] hue-rotate-[-30deg] contrast-125 opacity-90"
                     />
                 </div>
 

@@ -1,7 +1,7 @@
 // frontend/src/app/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Cursor from "@/components/Cursor";
 import Slide1 from "@/components/slides/Slide1";
@@ -17,6 +17,7 @@ export default function Home() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [direction, setDirection] = useState<"next" | "prev">("next");
   const [isMobile, setIsMobile] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type SlideComponent = React.ComponentType<any>;
   const SLIDES: SlideComponent[] = [Slide1, Slide2, Slide3, Slide4, Slide5, ChatBot];
   // Responsive check

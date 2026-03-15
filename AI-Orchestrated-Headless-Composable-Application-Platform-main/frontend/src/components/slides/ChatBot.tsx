@@ -120,36 +120,36 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
 
             {/* Execution Pipeline */}
             {plan.workflow_explanation?.trace && plan.workflow_explanation.trace.length > 0 && (
-                <div className="glass-card p-4 border-opal/10">
-                    <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">⚙️ Execution Pipeline</h4>
+                <div className="glass-card p-4 border-accent/10">
+                    <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-3">⚙️ Execution Pipeline</h4>
                     <div className="flex flex-wrap gap-2">
                         {plan.workflow_explanation.trace.map((step, idx) => (
-                            <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-opal/20 bg-sapphire-night/60" title={step.error ?? undefined}>
+                            <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-accent/20 bg-surface/60" title={step.error ?? undefined}>
                                 <span className={`w-2 h-2 rounded-full ${stepColor(step.status)}`} />
-                                <span className="text-xs font-space text-white">{stepIcon(step.step)} {step.step || "Process"}</span>
+                                <span className="text-xs font-space text-text-primary">{stepIcon(step.step)} {step.step || "Process"}</span>
                                 {step.latency_ms != null && <span className="text-xs text-text-muted">{step.latency_ms}ms</span>}
                                 {step.status === "skipped" && <span className="text-xs text-yellow-400">skip</span>}
                             </div>
                         ))}
                     </div>
                     {plan.rag_context_used && (
-                        <p className="text-xs text-opal/70 mt-2 font-space">📚 RAG knowledge base used for enriched context</p>
+                        <p className="text-xs text-accent/70 mt-2 font-space">📚 RAG knowledge base used for enriched context</p>
                     )}
                 </div>
             )}
 
             {/* Best Budget Pick */}
             {plan.recommended?.flight && plan.recommended?.hotel && (
-                <div className="glass-card p-4 border-opal/20 bg-opal/5">
-                    <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">⭐ Best Budget Pick</h4>
-                    <div className="flex flex-col sm:flex-row gap-3 font-space text-sm text-white">
+                <div className="glass-card p-4 border-accent/20 bg-accent/5">
+                    <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-3">⭐ Best Budget Pick</h4>
+                    <div className="flex flex-col sm:flex-row gap-3 font-space text-sm text-text-primary">
                         <div className="flex-1">
                             <span className="text-text-muted text-xs">Flight</span>
-                            <p>{plan.recommended.flight.airline || "Airline"} <span className="text-opal font-bold">₹{plan.recommended.flight.price?.toLocaleString() || "N/A"}</span> <span className="text-text-muted text-xs">({plan.recommended.flight.duration_hrs || "?"}h)</span></p>
+                            <p>{plan.recommended.flight.airline || "Airline"} <span className="text-accent font-bold">₹{plan.recommended.flight.price?.toLocaleString() || "N/A"}</span> <span className="text-text-muted text-xs">({plan.recommended.flight.duration_hrs || "?"}h)</span></p>
                         </div>
                         <div className="flex-1">
                             <span className="text-text-muted text-xs">Hotel</span>
-                            <p>{plan.recommended.hotel.name || "Hotel"} <span className="text-opal font-bold">₹{plan.recommended.hotel.price_per_night?.toLocaleString() || plan.recommended.hotel.price?.toLocaleString() || "N/A"}/night</span></p>
+                            <p>{plan.recommended.hotel.name || "Hotel"} <span className="text-accent font-bold">₹{plan.recommended.hotel.price_per_night?.toLocaleString() || (plan.recommended.hotel as any).price?.toLocaleString() || "N/A"}/night</span></p>
                         </div>
                     </div>
                 </div>
@@ -157,13 +157,13 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
 
             {/* Flights */}
             {plan.flights.length > 0 && (
-                <div className="glass-card p-4 border-opal/10">
-                    <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">✈️ Flights</h4>
+                <div className="glass-card p-4 border-accent/10">
+                    <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-3">✈️ Flights</h4>
                     <div className="space-y-2">
                         {plan.flights.map((f, j) => (
-                            <div key={j} className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1">
+                            <div key={j} className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-text-primary gap-1">
                                 <div><span>{f.airline || "Unknown Airline"}</span>{f.departure && <span className="text-text-muted text-xs ml-2">{f.departure} · {f.duration_hrs || "?"}h</span>}</div>
-                                <span className="text-opal font-bold">₹{f.price?.toLocaleString() || "N/A"}</span>
+                                <span className="text-accent font-bold">₹{f.price?.toLocaleString() || "N/A"}</span>
                             </div>
                         ))}
                     </div>
@@ -172,18 +172,18 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
 
             {/* Hotels */}
             {plan.hotels.length > 0 && (
-                <div className="glass-card p-4 border-opal/10">
-                    <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-3">🏨 Hotels</h4>
+                <div className="glass-card p-4 border-accent/10">
+                    <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-3">🏨 Hotels</h4>
                     <div className="space-y-2">
                         {plan.hotels.map((h, j) => (
                             <div key={j}>
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-white gap-1">
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center font-space text-xs sm:text-sm text-text-primary gap-1">
                                     <div><span>{h.name || "Unknown Hotel"}</span><span className="text-text-muted text-xs ml-2">⭐ {h.rating || "?"}</span>{h.location && <span className="text-text-muted text-xs ml-1">· {h.location.replace("_", " ")}</span>}</div>
-                                    <span className="text-opal font-bold">₹{h.price_per_night?.toLocaleString() || (h as any).price?.toLocaleString() || "N/A"}/night</span>
+                                    <span className="text-accent font-bold">₹{h.price_per_night?.toLocaleString() || (h as any).price?.toLocaleString() || "N/A"}/night</span>
                                 </div>
                                 {h.amenities && h.amenities.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                        {h.amenities.map((a, k) => <span key={k} className="text-xs bg-opal/10 text-opal px-2 py-0.5 rounded-full">{a}</span>)}
+                                        {h.amenities.map((a, k) => <span key={k} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">{a}</span>)}
                                     </div>
                                 )}
                             </div>
@@ -195,16 +195,16 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
             {/* Weather + Attractions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {plan.weather?.temperature && (
-                    <div className="glass-card p-4 border-opal/10">
-                        <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-2">🌤️ Weather {plan.weather.city ? `in ${plan.weather.city}` : ''}</h4>
-                        <p className="font-space text-sm text-white">{plan.weather.temperature} — {plan.weather.condition}</p>
+                    <div className="glass-card p-4 border-accent/10">
+                        <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-2">🌤️ Weather {plan.weather.city ? `in ${plan.weather.city}` : ''}</h4>
+                        <p className="font-space text-sm text-text-primary">{plan.weather.temperature} — {plan.weather.condition}</p>
                         {plan.weather.humidity != null && <p className="font-space text-xs text-text-muted mt-1">Humidity: {plan.weather.humidity}% · Wind: {plan.weather.wind_kph} kph</p>}
                     </div>
                 )}
                 {plan.attractions.length > 0 && (
-                    <div className="glass-card p-4 border-opal/10">
-                        <h4 className="font-orbitron text-xs text-opal tracking-[3px] uppercase mb-2">📍 Top Attractions</h4>
-                        <ul className="font-space text-sm text-white space-y-1">
+                    <div className="glass-card p-4 border-accent/10">
+                        <h4 className="font-orbitron text-xs text-accent tracking-[3px] uppercase mb-2">📍 Top Attractions</h4>
+                        <ul className="font-space text-sm text-text-primary space-y-1">
                             {plan.attractions.slice(0, 5).map((a, j) => <li key={j}>• {a}</li>)}
                         </ul>
                     </div>
@@ -213,14 +213,14 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
 
             {/* Budget Summary */}
             {plan.estimated_budget > 0 && (
-                <div className="glass-card p-4 border-opal/20 bg-opal/5">
+                <div className="glass-card p-4 border-accent/20 bg-accent/5">
                     <div className="flex justify-between items-center mb-3">
-                        <span className="font-orbitron text-xs text-opal tracking-[3px] uppercase">💰 Estimated Budget</span>
-                        <span className="font-orbitron font-bold text-xl text-white">₹{plan.estimated_budget.toLocaleString()}</span>
+                        <span className="font-orbitron text-xs text-accent tracking-[3px] uppercase">💰 Estimated Budget</span>
+                        <span className="font-orbitron font-bold text-xl text-text-primary">₹{plan.estimated_budget.toLocaleString()}</span>
                     </div>
                     {plan.budget_advice && (
-                        <div className="mt-3 p-3 rounded-lg bg-sapphire-night/60 border border-opal/10">
-                            <p className="font-orbitron text-xs text-opal tracking-[2px] uppercase mb-1">💡 Budget Tips</p>
+                        <div className="mt-3 p-3 rounded-lg bg-surface border border-accent/10">
+                            <p className="font-orbitron text-xs text-accent tracking-[2px] uppercase mb-1">💡 Budget Tips</p>
                             <p className="font-space text-xs text-text-muted leading-relaxed">{plan.budget_advice}</p>
                         </div>
                     )}
@@ -230,7 +230,7 @@ function TripCard({ plan, msgIdx, showTrace, setShowTrace, showItinerary, setSho
             {/* Copy Plan */}
             <button onClick={() => onCopy(
                 `Trip to ${plan.destination} (${plan.duration})\nBudget: ₹${plan.estimated_budget?.toLocaleString()}`
-            )} className="mt-2 text-xs font-space text-opal/60 hover:text-opal transition-colors">
+            )} className="mt-2 text-xs font-space text-accent/60 hover:text-accent transition-colors">
                 📋 Copy plan summary
             </button>
         </div>
@@ -312,13 +312,18 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                         ws.close();
                     }
                     else if (payload.event === "error") {
-                        throw new Error(payload.message);
+                        setMessages(prev => [...prev, {
+                            role: "assistant",
+                            content: `⚠️ **Error:** ${payload.message || "An unknown error occurred."}`,
+                        }]);
+                        setLoading(false);
+                        ws.close();
                     }
                 } catch (err) {
                     console.error("Payload processing error:", err);
                     setMessages(prev => [...prev, {
                         role: "assistant",
-                        content: "⚠️ The AI generated the plan, but there was an error formatting the data. (Check browser console for raw data)",
+                        content: `⚠️ Error processing response: ${err instanceof Error ? err.message : String(err)}. Check the browser console for details.`,
                     }]);
                     setLoading(false);
                     ws.close();
@@ -359,20 +364,20 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
     };
 
     return (
-        <div className={`slide-container bg-bg-deep flex flex-col items-center justify-start pt-20 md:pt-24 pb-4 md:pb-8 ${isActive ? "slide-active" : "slide-exit"}`}>
+        <div className={`slide-container bg-deep flex flex-col items-center justify-start pt-20 md:pt-24 pb-4 md:pb-8 ${isActive ? "slide-active" : "slide-exit"}`}>
             {/* Header */}
             <div className="z-10 text-center mb-3 md:mb-6 px-4">
-                <h2 className="font-orbitron font-bold text-xl sm:text-3xl md:text-5xl text-white mb-2 md:mb-3">
+                <h2 className="font-orbitron font-bold text-xl sm:text-3xl md:text-5xl text-text-primary mb-2 md:mb-3">
                     <SplitText text="AI TRAVEL PLANNER" delayIndex={0} />
                 </h2>
                 <p className="font-space text-text-muted text-sm max-w-xl mx-auto">
-                    Powered by <span className="text-opal">LangChain</span> + <span className="text-opal">Ollama</span> + <span className="text-opal">ChromaDB RAG</span> — dynamic orchestration with memory
+                    Powered by <span className="text-accent">LangChain</span> + <span className="text-accent">Ollama</span> + <span className="text-accent">ChromaDB RAG</span> — dynamic orchestration with memory
                 </p>
             </div>
 
             {/* Chat Container */}
             <div className="z-10 w-full max-w-3xl flex-1 flex flex-col mx-auto px-2 sm:px-4 overflow-hidden">
-                <div className="glass-card flex-1 flex flex-col overflow-hidden border-opal/20">
+                <div className="glass-card flex-1 flex flex-col overflow-hidden border-accent/20">
 
                     {loading && <ServiceFlow active={loading} />}
 
@@ -381,9 +386,9 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                         {messages.map((msg, i) => (
                             <div key={i}>
                                 <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                                    <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-space leading-relaxed ${msg.role === "user" ? "bg-opal/20 text-white border border-opal/30"
-                                            : msg.role === "system" ? "bg-sapphire-night text-text-muted border border-border"
-                                                : "bg-sapphire-night/80 text-white border border-opal/10"
+                                    <div className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-space leading-relaxed ${msg.role === "user" ? "bg-accent text-white font-bold"
+                                            : msg.role === "system" ? "bg-surface/50 text-text-muted border border-border"
+                                                : "bg-white text-text-primary border border-border"
                                         }`}>
                                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                                     </div>
@@ -404,11 +409,11 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                         {/* Real-Time WebSocket Loader */}
                         {loading && (
                             <div className="flex justify-start">
-                                <div className="bg-sapphire-night border border-opal/20 rounded-2xl px-4 py-3">
+                                <div className="bg-surface border border-accent/20 rounded-2xl px-4 py-3">
                                     <div className="flex items-center gap-2">
                                         <div className="flex gap-1">
                                             {[0, 150, 300].map(delay => (
-                                                <div key={delay} className="w-2 h-2 rounded-full bg-opal animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                                                <div key={delay} className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                                             ))}
                                         </div>
                                         <span className="font-space text-xs text-text-muted italic">{statusText}</span>
@@ -421,25 +426,25 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
 
                     {/* Compare Mode Modal */}
                     {compareMode && (
-                        <div className="p-3 border-t border-border bg-sapphire-night/80">
-                            <p className="font-orbitron text-xs text-opal tracking-[2px] uppercase mb-2">🔀 Compare Two Destinations</p>
+                        <div className="p-3 border-t border-border bg-primary/80">
+                            <p className="font-orbitron text-xs text-accent tracking-[2px] uppercase mb-2">🔀 Compare Two Destinations</p>
                             <div className="grid grid-cols-2 gap-2 mb-2">
                                 <input value={destA} onChange={e => setDestA(e.target.value)} placeholder="Destination A (e.g. Goa)"
-                                    className="bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" />
+                                    className="bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-text-primary focus:outline-none focus:border-accent/50" />
                                 <input value={destB} onChange={e => setDestB(e.target.value)} placeholder="Destination B (e.g. Delhi)"
-                                    className="bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" />
+                                    className="bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-text-primary focus:outline-none focus:border-accent/50" />
                             </div>
                             <div className="flex gap-2 mb-2">
                                 <input type="number" value={compareDays} onChange={e => setCompareDays(Number(e.target.value))} min={1} max={14}
-                                    className="w-20 bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" placeholder="Days" />
+                                    className="w-20 bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-text-primary focus:outline-none focus:border-accent/50" placeholder="Days" />
                                 <input type="number" value={compareBudget} onChange={e => setCompareBudget(Number(e.target.value))}
-                                    className="flex-1 bg-bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-white focus:outline-none focus:border-opal/50" placeholder="Budget (₹)" />
+                                    className="flex-1 bg-deep border border-border rounded-lg px-3 py-2 text-xs font-space text-text-primary focus:outline-none focus:border-accent/50" placeholder="Budget (₹)" />
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={sendCompare} disabled={loading || !destA || !destB}
                                     className="btn-primary px-4 py-2 text-xs disabled:opacity-40">Compare</button>
                                 <button onClick={() => setCompareMode(false)}
-                                    className="px-4 py-2 text-xs font-space text-text-muted hover:text-white transition-colors">Cancel</button>
+                                    className="px-4 py-2 text-xs font-space text-text-muted hover:text-text-primary transition-colors">Cancel</button>
                             </div>
                         </div>
                     )}
@@ -451,7 +456,7 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                                 onChange={e => setInput(e.target.value)}
                                 onKeyDown={e => e.key === "Enter" && sendQuery()}
                                 placeholder='e.g. Plan a 2-day trip to Goa under ₹15000...'
-                                className="flex-1 bg-bg-deep border border-border rounded-xl px-3 sm:px-4 py-3 text-xs sm:text-sm font-space text-white placeholder-text-muted/60 focus:outline-none focus:border-opal/50 transition-colors min-h-[44px]"
+                                className="flex-1 bg-deep border border-border rounded-xl px-3 sm:px-4 py-3 text-xs sm:text-sm font-space text-text-primary placeholder-text-muted/60 focus:outline-none focus:border-accent/50 transition-colors min-h-[44px]"
                                 disabled={loading} />
                             <button onClick={() => sendQuery()} disabled={loading || !input.trim()}
                                 className="btn-primary px-4 sm:px-6 disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm">
@@ -461,7 +466,7 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
                         <div className="flex gap-3 justify-between items-center">
                             <div className="flex gap-2">
                                 <button onClick={() => setCompareMode(v => !v)}
-                                    className={`text-xs font-space px-3 py-1.5 rounded-lg border transition-colors ${compareMode ? "border-opal text-opal" : "border-border text-text-muted hover:border-opal/50 hover:text-opal/70"}`}>
+                                    className={`text-xs font-space px-3 py-1.5 rounded-lg border transition-colors ${compareMode ? "border-accent text-accent" : "border-border text-text-muted hover:border-accent/50 hover:text-accent/70"}`}>
                                     🔀 Compare
                                 </button>
                                 <button onClick={clearSession}

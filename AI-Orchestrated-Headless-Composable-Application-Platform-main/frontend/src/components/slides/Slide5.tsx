@@ -41,15 +41,15 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
     ];
 
     return (
-        <div className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
+        <div className={`slide-container bg-deep flex flex-col items-center justify-center ${isActive ? 'slide-active' : 'slide-exit'}`}>
 
             <div
-                className="absolute inset-0 z-0 bg-cover bg-center opacity-15"
+                className="absolute inset-0 z-0 bg-cover bg-center opacity-15 sepia-[.5] hue-rotate-[-30deg] contrast-125"
                 style={{ backgroundImage: "url('/images/modules-bg.jpg')" }}
             />
 
             <div className="z-10 text-center mb-12 animate-[fadeUp_0.8s_ease_0.2s_both] px-4">
-                <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-white mb-3 md:mb-4">
+                <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-text-primary mb-3 md:mb-4">
                     <SplitText text="PICK. COMPOSE. LAUNCH." delayIndex={0} />
                 </h2>
                 <p className="font-space text-text-muted text-sm md:text-base max-w-2xl mx-auto">
@@ -61,7 +61,7 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
                 {modules.map((mod, i) => (
                     <div
                         key={i}
-                        className="glass-card spotlight-hover p-4 sm:p-6 group transition-all duration-300 hover:-translate-y-1 hover:border-opal cursor-none flex flex-col"
+                        className="glass-card spotlight-hover p-4 sm:p-6 group transition-all duration-300 hover:-translate-y-1 hover:border-accent cursor-none flex flex-col"
                         style={{ animation: isActive ? `fadeUp 0.6s ease ${0.3 + (i * 0.05)}s both` : 'none' }}
                         onMouseEnter={(e) => {
                             if (!isMobile) {
@@ -71,8 +71,8 @@ export default function Slide5({ isActive, isMobile }: { isActive: boolean, isMo
                             }
                         }}
                     >
-                        <div className="text-xl sm:text-2xl mb-3 md:mb-4 text-opal opacity-80 group-hover:opacity-100 transition-opacity">{mod.icon}</div>
-                        <h3 className="font-orbitron font-semibold text-white text-sm sm:text-base mb-1 sm:mb-2 group-hover:text-opal transition-colors">{mod.title}</h3>
+                        <div className="text-xl sm:text-2xl mb-3 md:mb-4 text-accent opacity-80 group-hover:opacity-100 transition-opacity">{mod.icon}</div>
+                        <h3 className="font-orbitron font-semibold text-text-primary text-sm sm:text-base mb-1 sm:mb-2 group-hover:text-accent transition-colors">{mod.title}</h3>
                         <p className="font-space text-text-muted text-xs leading-relaxed flex-grow">{mod.desc}</p>
                     </div>
                 ))}
