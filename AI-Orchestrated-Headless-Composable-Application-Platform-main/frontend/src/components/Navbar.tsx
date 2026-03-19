@@ -28,9 +28,9 @@ export default function Navbar({ currentSlide, totalSlides, setSlide, isMobile }
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-[100] h-16 md:h-20 bg-sapphire-night/80 backdrop-blur-md border-b justify-between items-center border-border px-4 md:px-8 flex">
+      <nav className="fixed top-0 left-0 right-0 z-[100] h-16 md:h-20 bg-primary/80 backdrop-blur-md border-b justify-between items-center border-border px-4 md:px-8 flex">
         <div
-          className="font-orbitron font-bold text-lg md:text-2xl text-opal tracking-[2px] cursor-pointer"
+          className="font-orbitron font-bold text-xl md:text-3xl text-accent tracking-[2px] cursor-pointer"
           onClick={() => handleNav(0)}
         >
           AOHCAP
@@ -38,12 +38,12 @@ export default function Navbar({ currentSlide, totalSlides, setSlide, isMobile }
 
         {/* Desktop nav links */}
         {!isMobile && (
-          <div className="flex items-center gap-6 text-[11px] font-semibold tracking-[2px] uppercase">
+          <div className="flex items-center gap-6 text-sm md:text-base font-bold tracking-[2px] uppercase">
             {navLinks.map((link) => (
               <button
                 key={link.label}
                 onClick={() => setSlide(link.slide)}
-                className={`transition-colors font-orbitron ${currentSlide === link.slide ? "text-opal" : "text-text-muted hover:text-text-primary"
+                className={`transition-colors font-Inter ${currentSlide === link.slide ? "text-accent" : "text-text-primary hover:text-accent"
                   }`}
               >
                 {link.label}
@@ -67,14 +67,14 @@ export default function Navbar({ currentSlide, totalSlides, setSlide, isMobile }
 
       {/* Mobile dropdown menu */}
       {isMobile && menuOpen && (
-        <div className="fixed top-16 left-0 right-0 z-[99] bg-sapphire-night/95 backdrop-blur-lg border-b border-border flex flex-col py-4 px-6 gap-1">
+        <div className="fixed top-16 left-0 right-0 z-[99] bg-primary/95 backdrop-blur-lg border-b border-border flex flex-col py-4 px-6 gap-1">
           {navLinks.map((link) => (
             <button
               key={link.label}
               onClick={() => handleNav(link.slide)}
-              className={`text-left py-3 px-4 rounded-lg font-orbitron text-sm tracking-[2px] uppercase transition-colors ${currentSlide === link.slide
-                  ? "text-opal bg-opal/10"
-                  : "text-text-muted active:text-text-primary active:bg-white/5"
+              className={`text-left py-3 px-4 rounded-lg font-Inter text-lg font-bold tracking-[2px] uppercase transition-colors ${currentSlide === link.slide
+                  ? "text-accent bg-accent/10"
+                  : "text-text-primary active:text-accent active:bg-black/5"
                 }`}
             >
               {link.label}
@@ -90,7 +90,7 @@ export default function Navbar({ currentSlide, totalSlides, setSlide, isMobile }
             <button
               key={i}
               onClick={() => setSlide(i)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "bg-opal scale-150 shadow-[0_0_8px_var(--accent)]" : "bg-text-muted/40 hover:bg-text-muted"
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${currentSlide === i ? "bg-accent scale-150 shadow-[0_0_8px_var(--accent)]" : "bg-text-muted/40 hover:bg-text-muted"
                 }`}
               aria-label={`Go to slide ${i + 1}`}
             />

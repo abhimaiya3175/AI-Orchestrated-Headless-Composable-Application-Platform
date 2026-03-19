@@ -15,6 +15,24 @@ let isProcessing = false;
 let sessionId = crypto.randomUUID();
 let currentActiveTypingId = null;
 window.lastGeneratedPlan = null;
+let userCity = null;
+
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+            try {
+                const { latitude, longitude } = pos.coords;
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                const data = await res.json();
+                userCity = data.address.city || data.address.town || data.address.state || null;
+            } catch (e) {
+                console.error("Geocoding failed", e);
+            }
+        },
+        (err) => console.error("Geolocation error", err),
+        { timeout: 5000 }
+    );
+}
 
 // --- 1. Initialization ---
 async function checkHealth() {
@@ -143,7 +161,7 @@ function handleSend(overrideQuery = null) {
 
     const ws = new WebSocket(`${WS_BASE}/ws/plan`);
 
-    ws.onopen = () => { ws.send(JSON.stringify({ query, session_id: sessionId })); };
+    ws.onopen = () => { ws.send(JSON.stringify({ query, session_id: sessionId, source: userCity })); };
 
     ws.onmessage = (event) => {
         try {

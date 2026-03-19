@@ -29,11 +29,11 @@ export default function Slide3({ isActive }: { isActive: boolean }) {
 
   return (
     <div
-      className={`slide-container bg-bg-deep flex flex-col items-center justify-center ${isActive ? "slide-active" : "slide-exit"
+      className={`slide-container bg-deep flex flex-col items-center justify-center ${isActive ? "slide-active" : "slide-exit"
         }`}
     >
       <div className="text-center mb-8 md:mb-16 px-4">
-        <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-white mb-4 md:mb-6">
+        <h2 className="font-orbitron font-bold text-2xl sm:text-4xl md:text-5xl text-text-primary mb-4 md:mb-6">
           <SplitText text="SYSTEM ARCHITECTURE" />
         </h2>
 
@@ -47,13 +47,13 @@ export default function Slide3({ isActive }: { isActive: boolean }) {
           <div
             key={i}
             className={`glass-card p-4 sm:p-6 w-[140px] sm:w-[180px] text-center transition-all duration-500 ${i === activeStep
-                ? "border-opal scale-105 shadow-lg"
+                ? "border-accent scale-105 shadow-lg"
                 : "opacity-60"
               }`}
           >
             <div className="text-2xl sm:text-3xl mb-2 sm:mb-3">{step.icon}</div>
 
-            <div className="font-orbitron text-[10px] sm:text-xs tracking-[2px] text-white">
+            <div className="font-orbitron text-[10px] sm:text-xs tracking-[2px] text-text-primary">
               {step.label}
             </div>
           </div>

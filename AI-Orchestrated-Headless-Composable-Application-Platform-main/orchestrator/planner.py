@@ -47,7 +47,7 @@ class TravelOrchestrator:
         provider = os.getenv("LLM_PROVIDER", "local").lower()
 
         if provider == "local":
-            model    = os.getenv("LLM_MODEL", "llama2")
+            model    = os.getenv("LLM_MODEL", "llama3")
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
             self.llm = ChatOllama(model=model, base_url=base_url, format="json")
             # Non-json variant for free-text generation (itinerary, advisor)
@@ -60,12 +60,6 @@ class TravelOrchestrator:
         # Per-session conversation history: session_id → list of messages
         self._sessions: dict[str, list] = defaultdict(list)
         self._session_max_turns = 10   # keep last 10 messages
-
-        # Shared async HTTP client
-        self.client = httpx.AsyncClient(timeout=15)
-
-    async def close(self):
-        await self.client.aclose()
 
     # ─────────────────────────────────────────────
     # Session / Memory helpers
@@ -95,9 +89,10 @@ class TravelOrchestrator:
     async def _fetch_data(self, url: str, params: dict = None) -> dict:
         start = time.time()
         try:
-            response = await self.client.get(url, params=params)
-            response.raise_for_status()
-            return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
         except Exception as e:
             logger.error(f"GET failed: {url} | {e}")
             return {"data": {}, "latency_ms": None, "error": str(e)}
@@ -105,9 +100,10 @@ class TravelOrchestrator:
     async def _post_data(self, url: str, payload: dict) -> dict:
         start = time.time()
         try:
-            response = await self.client.post(url, json=payload)
-            response.raise_for_status()
-            return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                return {"data": response.json(), "latency_ms": round((time.time()-start)*1000, 2), "error": None}
         except Exception as e:
             logger.error(f"POST failed: {url} | {e}")
             return {"data": {}, "latency_ms": None, "error": str(e)}
@@ -143,7 +139,7 @@ Rules:
 Return ONLY valid JSON:
 {{
   "destination": "city name",
-  "source": "origin city or hyd",
+  "source": "origin city",
   "num_days": 2,
   "budget": 15000,
   "preferences": "general",
@@ -154,12 +150,15 @@ User query: {query}"""
         )
 
         chain = prompt | self.llm | StrOutputParser()
-        result = await chain.ainvoke({"query": query, "history": history_section})
-
         try:
+            # 45-second timeout for intent detection
+            result = await asyncio.wait_for(
+                chain.ainvoke({"query": query, "history": history_section}),
+                timeout=45.0
+            )
             parsed = json.loads(result)
             parsed.setdefault("destination", "Goa")
-            parsed.setdefault("source", "hyd")
+            parsed.setdefault("source", "")
             parsed.setdefault("num_days", 2)
             parsed.setdefault("budget", 15000)
             parsed.setdefault("preferences", "general")
@@ -167,10 +166,16 @@ User query: {query}"""
             svcs = parsed.get("services", [])
             parsed["services"] = [s.lower().strip() for s in svcs if isinstance(s, str)]
             return parsed
+        except asyncio.TimeoutError:
+            logger.warning("Intent detection timed out, using defaults")
+            return {
+                "destination": "Goa", "source": "", "num_days": 2,
+                "budget": 15000, "preferences": "general", "services": ALL_SERVICES
+            }
         except Exception:
             logger.warning("LLM JSON parse failed, using defaults")
             return {
-                "destination": "Goa", "source": "hyd", "num_days": 2,
+                "destination": "Goa", "source": "", "num_days": 2,
                 "budget": 15000, "preferences": "general", "services": ALL_SERVICES
             }
 
@@ -194,29 +199,30 @@ User query: {query}"""
                                      days: int, preferences: str) -> str:
         over_by = estimated - budget
         prompt = PromptTemplate.from_template(
-            """You are a smart travel budget advisor for India trips.
+            """You are a travel budget advisor.
+Dest: {dest}
+Max Budget: ₹{budget}
+Cost: ₹{estimated} (Diff: ₹{diff})
+Days: {days}
 
-Destination: {dest}
-User budget: ₹{budget}
-Estimated cost: ₹{estimated}
-Number of days: {days}
-Preferences: {preferences}
-Over/under budget by: ₹{diff}
-
-Give 2-3 concise, actionable budget tips for this specific trip.
-Focus on practical savings in flights, hotels, food, and activities.
-Keep it under 80 words. Be specific to the destination."""
+Give 2 concise tips to save money here. Max 40 words total."""
         )
         chain = prompt | self.llm_text | StrOutputParser()
         try:
-            return await chain.ainvoke({
-                "dest": dest, "budget": budget, "estimated": estimated,
-                "days": days, "preferences": preferences,
-                "diff": abs(over_by)
-            })
+            # 60 second timeout for resiliency (increased for llama3)
+            return await asyncio.wait_for(
+                chain.ainvoke({
+                    "dest": dest, "budget": budget, "estimated": estimated,
+                    "days": days, "diff": abs(over_by)
+                }),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Budget advisor timed out.")
+            return "Budget tips unavailable right now."
         except Exception as e:
             logger.warning(f"Budget advisor failed: {e}")
-            return ""
+            return "Budget tips unavailable right now."
 
     # ─────────────────────────────────────────────
     # Itinerary Generation
@@ -227,27 +233,30 @@ Keep it under 80 words. Be specific to the destination."""
         context_section = f"\n\nLocal knowledge:\n{rag_context}" if rag_context else ""
 
         prompt = PromptTemplate.from_template(
-            """Create a day-by-day travel itinerary for {dest} for {days} days.
-Preferences: {preferences}
-Key attractions: {attractions}{context}
+            """Create a brief itinerary for {dest} ({days} days).
+Attractions: {attractions}{context}
 
-Format as:
-## Day 1 — [Theme]
-- Morning: ...
-- Afternoon: ...
-- Evening: ...
-
-Keep each day concise (2-3 lines per slot). Focus on real places."""
+Format:
+## Day X
+- Morning: [Activity]
+- Afternoon: [Activity]
+Keep it extremely short."""
         )
         chain = prompt | self.llm_text | StrOutputParser()
         try:
-            return await chain.ainvoke({
-                "dest": dest, "days": days, "preferences": preferences,
-                "attractions": attractions_str, "context": context_section
-            })
+            # 90 second timeout for resiliency (increased for llama3)
+            return await asyncio.wait_for(
+                chain.ainvoke({
+                    "dest": dest, "days": days, "attractions": attractions_str, "context": context_section
+                }),
+                timeout=90.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Itinerary generation timed out.")
+            return "Detailed itinerary taking too long to generate."
         except Exception as e:
             logger.warning(f"Itinerary generation failed: {e}")
-            return ""
+            return "Detailed itinerary unavailable."
 
     # ─────────────────────────────────────────────
     # Single-destination orchestration
@@ -333,15 +342,30 @@ Keep each day concise (2-3 lines per slot). Focus on real places."""
             budget_metrics   = bdata.get("metrics", {})
             budget_evaluation = bdata.get("evaluation")
 
-            # Smart budget advisor
-            budget_advice = await self.generate_budget_advice(
-                dest, budget, estimated_budget, days, preferences
-            )
+            # Extract base budget advice inputs to run concurrently below
+            budget_advice_inputs = (dest, budget, estimated_budget, days, preferences)
         else:
+            budget_advice_inputs = None
             workflow_trace.append({"step": "Budget Service", "status": "skipped", "latency_ms": None, "error": None})
 
-        # Itinerary generation
-        itinerary = await self.generate_itinerary(dest, days, preferences, attractions, rag_context)
+        # 🚀 Parallel Execution of Heavy LLM Tasks (Itinerary & Budget Advice)
+        advice_task = self.generate_budget_advice(*budget_advice_inputs) if budget_advice_inputs else asyncio.sleep(0)
+        
+        # Only generate a day-by-day itinerary if the user is planning a broader trip, not just asking for a list of places.
+        generate_itinerary_flag = ("places" in selected_services) and (len(selected_services) > 1)
+        itinerary_task = self.generate_itinerary(dest, days, preferences, attractions, rag_context) if generate_itinerary_flag else asyncio.sleep(0)
+
+        logger.info(f"Starting parallel LLM generations for {dest}")
+        start_llms = time.time()
+        
+        # Run them at the same time and wait for both
+        budget_advice_result, itinerary = await asyncio.gather(advice_task, itinerary_task, return_exceptions=True)
+        
+        # Handle returns safely
+        budget_advice = budget_advice_result if isinstance(budget_advice_result, str) else ""
+        itinerary = itinerary if (generate_itinerary_flag and isinstance(itinerary, str)) else ""
+        
+        logger.info(f"Parallel LLM generations completed in {round(time.time() - start_llms, 2)}s")
 
         # Reasoning string
         called_names  = [s.title() for s in selected_services]
@@ -386,7 +410,7 @@ Keep each day concise (2-3 lines per slot). Focus on real places."""
     async def orchestrate(self, request_data: dict) -> dict:
         query          = request_data.get("query", "")
         session_id     = request_data.get("session_id", "")
-        fallback_src   = request_data.get("source", "hyd")
+        fallback_src   = request_data.get("source") or "hyd"
         fallback_days  = request_data.get("num_days", 2)
         fallback_budget = request_data.get("budget", 15000)
 

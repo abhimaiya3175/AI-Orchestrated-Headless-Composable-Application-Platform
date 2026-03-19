@@ -31,8 +31,8 @@ USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8006")
 
 # --- Infrastructure Setup ---
 limiter = Limiter(key_func=get_remote_address)
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-orchestrator = TravelOrchestrator()
+redis_client = None
+orchestrator = None
 
 app = FastAPI(title="AI Travel Planner API Gateway")
 app.state.limiter = limiter
@@ -107,27 +107,34 @@ async def health_dashboard(request: Request):
 @app.post("/plans/generate")
 @limiter.limit("10/minute")
 async def generate_plan(request: Request):
-    """Standard REST endpoint for generating a trip plan (with Redis caching)."""
+    """Standard REST endpoint for generating a trip plan (with optional Redis caching)."""
     payload = await request.json()
     
-    # 1. Check Cache
+    # 1. Check Cache (skip if Redis unavailable)
     cache_key = generate_cache_key(payload)
-    cached_plan = await redis_client.get(cache_key)
-    if cached_plan:
-        logger.info(f"Cache hit for query: {payload.get('query')}")
-        return json.loads(cached_plan)
+    if redis_client:
+        try:
+            cached_plan = await redis_client.get(cache_key)
+            if cached_plan:
+                logger.info(f"Cache hit for query: {payload.get('query')}")
+                return json.loads(cached_plan)
+        except Exception:
+            logger.warning("Redis read failed — skipping cache.")
         
     # 2. Inject user defaults if authenticated
     user = request.state.user
     if user and not payload.get("budget"):
-        # You could dynamically fetch the user's preferred_budget from USER_SERVICE here
         pass
 
     # 3. Call Orchestrator
     plan = await orchestrator.orchestrate(payload)
     
-    # 4. Save to Cache (TTL = 30 minutes)
-    await redis_client.setex(cache_key, 1800, json.dumps(plan))
+    # 4. Save to Cache (TTL = 30 minutes, skip if Redis unavailable)
+    if redis_client:
+        try:
+            await redis_client.setex(cache_key, 1800, json.dumps(plan))
+        except Exception:
+            logger.warning("Redis write failed — skipping cache.")
     
     return plan
 
@@ -162,21 +169,39 @@ async def websocket_plan_endpoint(websocket: WebSocket):
         await websocket.send_json({"event": "status", "message": "Analyzing intent..."})
         
         # 1. Detect Intent
-        intent = await orchestrator.detect_intent_and_services(query, session_id)
+        try:
+            intent = await orchestrator.detect_intent_and_services(query, session_id)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Intent detection failed: {error_msg}")
+            # Provide user-friendly hints for common errors
+            if "Connection refused" in error_msg or "connect" in error_msg.lower():
+                hint = "Cannot connect to Ollama LLM. Please ensure Ollama is running (run: ollama serve)."
+            else:
+                hint = f"Intent detection failed: {error_msg}"
+            await websocket.send_json({"event": "error", "message": hint})
+            return
+            
         await websocket.send_json({
             "event": "intent_detected",
             "data": intent
         })
         
-        # 2. Execute Services (Simulating streaming progression for the UI)
+        # 2. Execute Services
         services_to_call = intent.get("services", [])
         await websocket.send_json({"event": "status", "message": f"Contacting services: {', '.join(services_to_call)}"})
         
-        # Note: True parallel streaming requires modifying orchestrator._orchestrate_single 
-        # to yield async generators. For now, we await the heavy lifting and send the final block,
-        # but the UI gets the early intent detection immediately to start rendering skeletons.
-        
-        plan = await orchestrator.orchestrate(data)
+        try:
+            plan = await orchestrator.orchestrate(data)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Orchestration failed: {error_msg}")
+            if "Connection refused" in error_msg or "connect" in error_msg.lower():
+                hint = "Cannot connect to one or more backend services. Check that all microservices are running."
+            else:
+                hint = f"Planning failed: {error_msg}"
+            await websocket.send_json({"event": "error", "message": hint})
+            return
         
         await websocket.send_json({
             "event": "plan_complete",
@@ -186,11 +211,39 @@ async def websocket_plan_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info("Client disconnected from WebSocket")
     except Exception as e:
-        logger.error(f"WebSocket error: {str(e)}")
-        await websocket.send_json({"event": "error", "message": "An error occurred during planning."})
+        logger.error(f"WebSocket error: {str(e)}", exc_info=True)
+        try:
+            await websocket.send_json({"event": "error", "message": f"Gateway error: {str(e)}"})
+        except Exception:
+            pass  # Connection already closed
         
 # --- Lifecycle ---
+@app.on_event("startup")
+async def startup_event():
+    global redis_client, orchestrator
+    logger.info("Starting up Gateway...")
+    try:
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        # Ping to check if Redis is actually alive
+        await redis_client.ping()
+        logger.info("Redis connected successfully.")
+    except Exception as e:
+        redis_client = None
+        logger.warning(f"Redis not available ({e}) — caching disabled.")
+        
+    try:
+        orchestrator = TravelOrchestrator()
+        logger.info("TravelOrchestrator initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to initialize TravelOrchestrator: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_event():
-    await orchestrator.close()
-    await redis_client.aclose()
+    logger.info("Shutting down Gateway...")
+    if getattr(globals(), 'orchestrator', None) and orchestrator:
+        await orchestrator.close()
+    if getattr(globals(), 'redis_client', None) and redis_client:
+        try:
+            await redis_client.aclose()
+        except Exception:
+            pass
