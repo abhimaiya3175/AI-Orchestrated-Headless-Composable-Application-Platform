@@ -660,8 +660,23 @@ npm run dev
 2. Start the backend: `python start_backend.py`
 3. Start the frontend: `cd frontend && npm run dev`
 4. Navigate to **Slide 6 (AI Planner)** — click **[AI PLANNER]** in the navbar, or click **[GET STARTED]** on the hero
-5. Type a travel query like: *"Plan a 2-day trip to Goa under ₹15000"*
 6. The AI orchestrator will call all relevant services and return a complete travel plan.
+
+### Using the Telegram Headless Client (Standalone UI)
+
+To demonstrate the "Completely Headless" nature of the backend, there is a dedicated Telegram Bot client living entirely separate from the core architecture. It connects securely to the Gateway REST API and utilizes Telegram Chat IDs for persistent session memory!
+
+1. Request a Bot Token from `@BotFather` on Telegram.
+2. Add your token to the root `.env` file: `TELEGRAM_BOT_TOKEN=your_token_here`
+3. Open a new isolated terminal, activate your virtual environment, and install client dependencies:
+   ```bash
+   pip install -r telegram_client/requirements.txt
+   ```
+4. Start the standalone bot (ensure `start_backend.py` is already running):
+   ```bash
+   python telegram_client/main.py
+   ```
+5. Message your bot on Telegram (e.g., `/start` and then "Plan a 3-day trip to Mumbai").
 
 ### Docker Deployment
 

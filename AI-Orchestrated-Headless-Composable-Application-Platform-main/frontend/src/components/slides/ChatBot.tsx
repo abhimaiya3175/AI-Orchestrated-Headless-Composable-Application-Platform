@@ -343,7 +343,7 @@ export default function ChatBot({ isActive }: { isActive: boolean }) {
 
                         setMessages(prev => [...prev, {
                             role: "assistant",
-                            content: `Here's your travel plan for **${safePlan.destination}** (${safePlan.duration}):`,
+                            content: `Here's your travel plan to **${safePlan.destination}** from **${safePlan.source || "Origin"}** (${safePlan.duration}):`,
                             tripPlan: safePlan,
                         }]);
                         setLoading(false);

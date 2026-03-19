@@ -215,7 +215,7 @@ Give 2 concise tips to save money here. Max 40 words total."""
                     "dest": dest, "budget": budget, "estimated": estimated,
                     "days": days, "diff": abs(over_by)
                 }),
-                timeout=60.0
+                timeout=180.0
             )
         except asyncio.TimeoutError:
             logger.warning("Budget advisor timed out.")
@@ -249,7 +249,7 @@ Keep it extremely short."""
                 chain.ainvoke({
                     "dest": dest, "days": days, "attractions": attractions_str, "context": context_section
                 }),
-                timeout=90.0
+                timeout=180.0
             )
         except asyncio.TimeoutError:
             logger.warning("Itinerary generation timed out.")
